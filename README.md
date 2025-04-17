@@ -2,7 +2,8 @@
 
 ![image](https://github.com/user-attachments/assets/e0e2539b-d74a-4e42-a149-b447b5092178)
 
-KAFKA_KOPANDA 는 Apache Kafka를 시각화하고 관리할 수 있는 가벼운 데스크톱 애플리케이션입니다. Kafka 클러스터를 관리하고 모니터링할 수 있는 사용자 친화적인 그래픽 인터페이스를 제공합니다.
+KAFKA_KOPANDA 는 Apache Kafka를 시각화하고 관리할 수 있는 가벼운 데스크톱 애플리케이션입니다.<br/>
+Kafka 클러스터를 관리하고 모니터링할 수 있는 사용자 친화적인 그래픽 인터페이스를 제공합니다.
 
 ## ✨주요 기능
 
