@@ -14,7 +14,7 @@ KAFKA_KOPANDA 는 Apache Kafka를 시각화하고 관리할 수 있는 가벼운
 - 📦 String, Avro, Protobuf 등 다양한 데이터 포맷 지원
   
 
-## 🚀 Quick Start
+## 🚀빠른 시작 가이드
 
 1. 실행합니다.
 2. 좌측 하단의 "Add Connection" 버튼을 클릭합니다.
@@ -32,11 +32,11 @@ KAFKA_KOPANDA 는 Apache Kafka를 시각화하고 관리할 수 있는 가벼운
     - 최신/가장 오래된 메시지 위치를 선택할 수 있습니다.
     - 페이지네이션을 통해 더 많은 메시지를 탐색할 수 있습니다.
 
-## 📸 Interface
+## 📸 인터페이스
 
 ![주요화면](업로드예정)
 
-## 🔨 Development Plans
+## 🔨 추후예정
 - [ ] 메시지 전송 기능 추가
 - [ ] 컨슈머 그룹 관리 기능 추가
 - [ ] 토픽 생성 및 설정 기능 지원
