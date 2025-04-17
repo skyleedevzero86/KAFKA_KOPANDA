@@ -55,3 +55,8 @@ Kafka Dog is licensed under the [MIT License](./LICENSE).
 
 - Author：[궁금하면500](https://velog.io/@sleekydevzero86)
 - Email：[sleekydz86@naver.com]()
+
+## 참조 도서
+- 이펙티브 코틀린
+- 코틀린 코루틴
+- 객체에서 함수로
