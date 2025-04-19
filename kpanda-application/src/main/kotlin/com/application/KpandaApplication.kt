@@ -1,11 +1,11 @@
-package com.backend
+package com.application
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
 @SpringBootApplication
-class BackendApplication
+class KpandaApplication
 
 fun main(args: Array<String>) {
-	runApplication<BackendApplication>(*args)
+    runApplication<KpandaApplication>(*args)
 }
