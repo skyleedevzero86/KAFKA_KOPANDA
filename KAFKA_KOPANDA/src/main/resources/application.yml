@@ -1,0 +1,256 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: kafka-dog-backend
+
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+    time-zone: Asia/Seoul
+
+  profiles:
+    active: dev
+
+logging:
+  level:
+    com.kafkadog: DEBUG
+    org.apache.kafka: INFO
+    org.springframework.web: INFO
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/kafka-dog.log
+    max-size: 100MB
+    max-history: 30
+
+kafka:
+  client:
+    default-timeout-ms: 5000
+    request-timeout-ms: 3000
+    metadata-max-age-ms: 300000
+    reconnect-backoff-ms: 50
+    retry-backoff-ms: 100
+    max-block-ms: 60000
+    buffer-memory: 33554432
+    compression-type: none
+    batch-size: 16384
+    linger-ms: 0
+    max-request-size: 1048576
+    receive-buffer-bytes: 32768
+    send-buffer-bytes: 131072
+    max-in-flight-requests-per-connection: 5
+    connections-max-idle-ms: 540000
+    session-timeout-ms: 30000
+    heartbeat-interval-ms: 3000
+    max-poll-records: 500
+    max-poll-interval-ms: 300000
+    auto-offset-reset: earliest
+    enable-auto-commit: false
+    auto-commit-interval-ms: 5000
+    check-crcs: true
+    exclude-internal-topics: true
+    isolation-level: read_uncommitted
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  admin:
+    request-timeout-ms: 5000
+    default-api-timeout-ms: 5000
+    operation-timeout-ms: 30000
+    fetch-timeout-ms: 5000
+
+  consumer:
+    group-id: kafka-dog-consumer
+    auto-offset-reset: earliest
+    enable-auto-commit: false
+    max-poll-records: 500
+    max-poll-interval-ms: 300000
+    session-timeout-ms: 30000
+    heartbeat-interval-ms: 3000
+    fetch-min-bytes: 1
+    fetch-max-wait-ms: 500
+    fetch-max-bytes: 52428800
+    max-partition-fetch-bytes: 1048576
+    check-crcs: true
+    exclude-internal-topics: true
+    isolation-level: read_uncommitted
+
+  producer:
+    acks: all
+    retries: 2147483647
+    batch-size: 16384
+    linger-ms: 0
+    buffer-memory: 33554432
+    compression-type: none
+    max-request-size: 1048576
+    max-block-ms: 60000
+    request-timeout-ms: 30000
+    delivery-timeout-ms: 120000
+    enable-idempotence: false
+    max-in-flight-requests-per-connection: 5
+    metadata-max-age-ms: 300000
+    reconnect-backoff-ms: 50
+    retry-backoff-ms: 100
+
+app:
+  connection:
+    default-port: 9092
+    test-timeout-ms: 5000
+    max-connections: 100
+    connection-pool-size: 10
+
+  message:
+    default-page-size: 20
+    max-page-size: 1000
+    preview-timeout-ms: 10000
+    search-timeout-ms: 30000
+    max-message-size: 1048576
+
+  topic:
+    default-replication-factor: 1
+    default-partitions: 1
+    max-partitions: 1000
+    max-replication-factor: 10
+
+  monitoring:
+    metrics-interval-ms: 30000
+    health-check-interval-ms: 60000
+    alert-check-interval-ms: 300000
+
+  security:
+    cors:
+      allowed-origins:
+        - "http://localhost:3000"
+        - "http://localhost:8080"
+        - "http://127.0.0.1:3000"
+        - "http://127.0.0.1:8080"
+      allowed-methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allowed-headers:
+        - "*"
+      allow-credentials: true
+      max-age: 3600
+
+    rate-limit:
+      enabled: true
+      requests-per-minute: 1000
+      burst-capacity: 100
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      version: ${project.version}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+logging:
+  level:
+    com.kafkadog: DEBUG
+    org.apache.kafka: DEBUG
+    org.springframework.web: DEBUG
+
+kafka:
+  client:
+    default-timeout-ms: 3000
+    request-timeout-ms: 2000
+
+app:
+  connection:
+    test-timeout-ms: 3000
+  message:
+    preview-timeout-ms: 5000
+    search-timeout-ms: 15000
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+logging:
+  level:
+    com.kafkadog: INFO
+    org.apache.kafka: WARN
+    org.springframework.web: WARN
+  file:
+    max-size: 500MB
+    max-history: 90
+
+kafka:
+  client:
+    default-timeout-ms: 10000
+    request-timeout-ms: 5000
+
+app:
+  connection:
+    test-timeout-ms: 10000
+  message:
+    preview-timeout-ms: 30000
+    search-timeout-ms: 60000
+  security:
+    cors:
+      allowed-origins:
+        - "https://your-production-domain.com"
+    rate-limit:
+      requests-per-minute: 500
+      burst-capacity: 50
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+
+logging:
+  level:
+    com.kafkadog: DEBUG
+    root: INFO
+
+kafka:
+  client:
+    default-timeout-ms: 1000
+    request-timeout-ms: 1000
+
+app:
+  connection:
+    test-timeout-ms: 1000
+  message:
+    preview-timeout-ms: 2000
+    search-timeout-ms: 5000
