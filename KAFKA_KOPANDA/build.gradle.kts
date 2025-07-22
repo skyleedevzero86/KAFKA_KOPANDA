@@ -1,6 +1,9 @@
 plugins {
 	kotlin("jvm") version "1.9.25"
 	kotlin("plugin.spring") version "1.9.25"
+	kotlin("plugin.jpa") version "1.9.25"
+	kotlin("plugin.allopen") version "1.9.25"
+	kotlin("plugin.noarg") version "1.9.25"
 	id("org.springframework.boot") version "3.5.3"
 	id("io.spring.dependency-management") version "1.1.7"
 }
@@ -20,12 +23,49 @@ repositories {
 }
 
 dependencies {
+	// Spring Boot
 	implementation("org.springframework.boot:spring-boot-starter-web")
+	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+	implementation("org.springframework.boot:spring-boot-starter-validation")
+	implementation("org.springframework.boot:spring-boot-starter-websocket")
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation("org.springframework.boot:spring-boot-starter-security")
+	implementation("org.springframework.boot:spring-boot-starter-cache")
+
+	// Kotlin
+	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+	implementation("org.jetbrains.kotlin:kotlin-reflect")
+	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+
+	// Kotlin Coroutines - 추가
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:1.7.3")
+
+	// Kafka
 	implementation("org.apache.kafka:kafka-clients:3.9.0")
-	implementation("com.fasterxml.jackson.core:jackson-databind:2.18.1")
 	implementation("io.confluent:kafka-avro-serializer:7.7.1")
 	implementation("com.google.protobuf:protobuf-java:4.28.3")
+
+	// Database
+	implementation("com.h2database:h2")
+	implementation("org.postgresql:postgresql")
+
+	// Cache
+	implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
+	// Monitoring
+	implementation("io.micrometer:micrometer-registry-prometheus")
+
+	// Testing
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.springframework.security:spring-security-test")
+	testImplementation("org.testcontainers:testcontainers:1.19.3")
+	testImplementation("org.testcontainers:kafka:1.19.3")
+	testImplementation("org.testcontainers:postgresql:1.19.3")
+
+	// Development
+	developmentOnly("org.springframework.boot:spring-boot-devtools")
+	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 }
 
 kotlin {
@@ -36,4 +76,16 @@ kotlin {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+allOpen {
+	annotation("jakarta.persistence.Entity")
+	annotation("jakarta.persistence.MappedSuperclass")
+	annotation("jakarta.persistence.Embeddable")
+}
+
+noArg {
+	annotation("jakarta.persistence.Entity")
+	annotation("jakarta.persistence.MappedSuperclass")
+	annotation("jakarta.persistence.Embeddable")
 }
