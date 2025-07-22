@@ -5,7 +5,42 @@ server:
 
 spring:
   application:
-    name: kafka-dog-backend
+    name: kafka-kopanda
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+    connect-timeout: 2000ms
+    socket-timeout: 2000ms
+
+  # H2 데이터베이스 설정
+  datasource:
+    url: jdbc:h2:mem:kopanda;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+        jdbc:
+          time_zone: Asia/Seoul
 
   jackson:
     default-property-inclusion: non_null
@@ -19,22 +54,9 @@ spring:
   profiles:
     active: dev
 
-logging:
-  level:
-    com.kafkadog: DEBUG
-    org.apache.kafka: INFO
-    org.springframework.web: INFO
-    root: INFO
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-  file:
-    name: logs/kafka-dog.log
-    max-size: 100MB
-    max-history: 30
-
 kafka:
   client:
+    bootstrap-servers: localhost:29092
     default-timeout-ms: 5000
     request-timeout-ms: 3000
     metadata-max-age-ms: 300000
@@ -72,7 +94,7 @@ kafka:
     fetch-timeout-ms: 5000
 
   consumer:
-    group-id: kafka-dog-consumer
+    group-id: kopanda-consumer
     auto-offset-reset: earliest
     enable-auto-commit: false
     max-poll-records: 500
@@ -104,12 +126,14 @@ kafka:
     reconnect-backoff-ms: 50
     retry-backoff-ms: 100
 
+# 애플리케이션 설정
 app:
   connection:
-    default-port: 9092
+    default-port: 29092  # Docker Kafka 컨테이너 포트
     test-timeout-ms: 5000
     max-connections: 100
     connection-pool-size: 10
+    default-host: localhost  # Docker 호스트
 
   message:
     default-page-size: 20
@@ -152,6 +176,26 @@ app:
       requests-per-minute: 1000
       burst-capacity: 100
 
+# 로깅 설정
+logging:
+  level:
+    com.sleekydz86.kopanda: DEBUG
+    org.apache.kafka: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.data.redis: WARN
+    io.lettuce.core: WARN
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/kafka-kopanda.log
+    max-size: 100MB
+    max-history: 30
+
+# Spring Boot Actuator 설정
 management:
   endpoints:
     web:
@@ -182,7 +226,7 @@ spring:
 
 logging:
   level:
-    com.kafkadog: DEBUG
+    com.sleekydz86.kopanda: DEBUG
     org.apache.kafka: DEBUG
     org.springframework.web: DEBUG
 
@@ -206,7 +250,7 @@ spring:
 
 logging:
   level:
-    com.kafkadog: INFO
+    com.sleekydz86.kopanda: INFO
     org.apache.kafka: WARN
     org.springframework.web: WARN
   file:
@@ -240,7 +284,7 @@ spring:
 
 logging:
   level:
-    com.kafkadog: DEBUG
+    com.sleekydz86.kopanda: DEBUG
     root: INFO
 
 kafka:
