@@ -37,6 +37,10 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
+	// Kotlin Coroutines - 추가
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:1.7.3")
+
 	// Kafka
 	implementation("org.apache.kafka:kafka-clients:3.9.0")
 	implementation("io.confluent:kafka-avro-serializer:7.7.1")
@@ -73,7 +77,6 @@ kotlin {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
-
 
 allOpen {
 	annotation("jakarta.persistence.Entity")

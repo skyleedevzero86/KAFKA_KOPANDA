@@ -7,7 +7,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/connections")
+@RequestMapping("/connections")
 class ConnectionController(
     private val connectionManagementUseCase: ConnectionManagementUseCase,
     private val kafkaManagementUseCase: KafkaManagementUseCase

@@ -22,7 +22,8 @@ class SecurityConfig {
                     .requestMatchers("/ws/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
                     .requestMatchers("/h2-console/**").permitAll()
-                    .anyRequest().authenticated()
+                    .requestMatchers("/test/**").permitAll()
+                    .anyRequest().permitAll()
             }
 
         return http.build()
