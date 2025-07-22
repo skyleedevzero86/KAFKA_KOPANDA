@@ -11,6 +11,8 @@ import org.springframework.stereotype.Controller
 import java.time.LocalDateTime
 
 @Controller
+//@RestController
+//@RequestMapping("/api")
 class WebSocketController(
     private val messagingTemplate: SimpMessagingTemplate,
     private val connectionManagementUseCase: ConnectionManagementUseCase,

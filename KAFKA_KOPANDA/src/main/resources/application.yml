@@ -30,6 +30,9 @@ spring:
     console:
       enabled: true
       path: /h2-console
+      settings:
+        web-allow-others: true
+        trace: false
 
   jpa:
     hibernate:
@@ -129,11 +132,11 @@ kafka:
 # 애플리케이션 설정
 app:
   connection:
-    default-port: 29092  # Docker Kafka 컨테이너 포트
+    default-port: 29092 # Docker Kafka 컨테이너 포트
     test-timeout-ms: 5000
     max-connections: 100
     connection-pool-size: 10
-    default-host: localhost  # Docker 호스트
+    default-host: localhost # Docker 호스트
 
   message:
     default-page-size: 20
