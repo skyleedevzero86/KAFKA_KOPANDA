@@ -8,56 +8,29 @@ import com.sleekydz86.kopanda.domain.events.ConnectionCreatedEvent
 import com.sleekydz86.kopanda.domain.events.ConnectionUpdatedEvent
 import com.sleekydz86.kopanda.domain.events.ConnectionDeletedEvent
 import com.sleekydz86.kopanda.shared.domain.AggregateRoot
-import jakarta.persistence.*
 import java.time.LocalDateTime
 
-@Entity
-@Table(name = "connections")
 class Connection(
-    @Embedded
-    @AttributeOverrides(
-        AttributeOverride(name = "value", column = Column(name = "connection_name"))
-    )
-    val name: ConnectionName,
-
-    @Embedded
-    @AttributeOverrides(
-        AttributeOverride(name = "value", column = Column(name = "host"))
-    )
-    val host: Host,
-
-    @Embedded
-    @AttributeOverrides(
-        AttributeOverride(name = "value", column = Column(name = "port"))
-    )
-    val port: Port,
-
-    @Column(name = "ssl_enabled")
-    val sslEnabled: Boolean = false,
-
-    @Column(name = "sasl_enabled")
-    val saslEnabled: Boolean = false,
-
-    @Column(name = "username")
-    val username: String? = null,
-
-    @Column(name = "password")
-    val password: String? = null,
-
-    @Column(name = "created_at")
+    var name: ConnectionName,
+    var host: Host,
+    var port: Port,
+    var sslEnabled: Boolean = false,
+    var saslEnabled: Boolean = false,
+    var username: String? = null,
+    var password: String? = null,
     val createdAt: LocalDateTime = LocalDateTime.now(),
-
-    @Column(name = "updated_at")
     var updatedAt: LocalDateTime = LocalDateTime.now(),
-
-    @Column(name = "last_connected")
-    var lastConnected: LocalDateTime? = null
+    var lastConnected: LocalDateTime? = null,
+    var isDeleted: Boolean = false
 ) : AggregateRoot() {
 
-    @EmbeddedId
-    private val id: ConnectionId = ConnectionId.generate()
+    private var id: ConnectionId = ConnectionId.generate()
 
     fun getId(): ConnectionId = id
+
+    fun setId(connectionId: ConnectionId) {
+        this.id = connectionId
+    }
 
     fun updateConnectionInfo(
         name: String? = null,
@@ -68,29 +41,16 @@ class Connection(
         username: String? = null,
         password: String? = null
     ) {
+        name?.let { this.name = ConnectionName(it) }
+        host?.let { this.host = Host(it) }
+        port?.let { this.port = Port(it) }
+        sslEnabled?.let { this.sslEnabled = it }
+        saslEnabled?.let { this.saslEnabled = it }
+        username?.let { this.username = it }
+        password?.let { this.password = it }
 
-        val newName = name?.let { ConnectionName(it) } ?: this.name
-        val newHost = host?.let { Host(it) } ?: this.host
-        val newPort = port?.let { Port(it) } ?: this.port
-        val newSslEnabled = sslEnabled ?: this.sslEnabled
-        val newSaslEnabled = saslEnabled ?: this.saslEnabled
-        val newUsername = username
-        val newPassword = password
-
-        val updatedConnection = Connection(
-            name = newName,
-            host = newHost,
-            port = newPort,
-            sslEnabled = newSslEnabled,
-            saslEnabled = newSaslEnabled,
-            username = newUsername,
-            password = newPassword,
-            createdAt = this.createdAt,
-            updatedAt = LocalDateTime.now(),
-            lastConnected = this.lastConnected
-        )
-
-        addDomainEvent(ConnectionUpdatedEvent(updatedConnection))
+        this.updatedAt = LocalDateTime.now()
+        addDomainEvent(ConnectionUpdatedEvent(this))
     }
 
     fun markAsConnected() {
@@ -105,6 +65,8 @@ class Connection(
     fun requiresAuthentication(): Boolean = saslEnabled && !username.isNullOrBlank()
 
     fun delete() {
+        isDeleted = true
+        updatedAt = LocalDateTime.now()
         addDomainEvent(ConnectionDeletedEvent(this))
     }
 
