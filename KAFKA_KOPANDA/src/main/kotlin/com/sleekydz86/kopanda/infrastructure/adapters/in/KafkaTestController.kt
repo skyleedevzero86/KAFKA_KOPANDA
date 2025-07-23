@@ -19,7 +19,7 @@ class KafkaTestController(
         val testRequest = CreateConnectionRequest(
             name = "Test Connection",
             host = "localhost",
-            port = 29092,
+            port = 9092,
             sslEnabled = false,
             saslEnabled = false
         )
@@ -46,7 +46,7 @@ class KafkaTestController(
         val testRequest = CreateConnectionRequest(
             name = "Test Connection",
             host = "localhost",
-            port = 29092,
+            port = 9092,
             sslEnabled = false,
             saslEnabled = false
         )
@@ -73,7 +73,7 @@ class KafkaTestController(
         val request = CreateConnectionRequest(
             name = "Local Kafka",
             host = "localhost",
-            port = 29092,
+            port = 9092,
             sslEnabled = false,
             saslEnabled = false
         )
@@ -95,5 +95,18 @@ class KafkaTestController(
             "message" to "Kafka Test Controller is running",
             "timestamp" to java.time.LocalDateTime.now().toString()
         ))
+    }
+
+    @PostMapping("/create-test-topic/{connectionId}")
+    fun createTestTopic(@PathVariable connectionId: String): ResponseEntity<TopicDto> {
+        val request = CreateTopicRequest(
+            name = "test-topic-${System.currentTimeMillis()}",
+            partitions = 3,
+            replicationFactor = 1,
+            config = emptyMap()
+        )
+
+        val topic = runBlocking { kafkaManagementUseCase.createTopic(connectionId, request) }
+        return ResponseEntity.ok(topic)
     }
 }

@@ -1,87 +1,100 @@
 package com.sleekydz86.kopanda.infrastructure.persistence.entities
 
 import com.sleekydz86.kopanda.domain.entities.Connection
-import com.sleekydz86.kopanda.domain.valueobjects.ConnectionId
-import com.sleekydz86.kopanda.domain.valueobjects.ConnectionName
-import com.sleekydz86.kopanda.domain.valueobjects.Host
-import com.sleekydz86.kopanda.domain.valueobjects.Port
+import com.sleekydz86.kopanda.domain.valueobjects.*
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
 @Entity
 @Table(name = "connections")
 class ConnectionEntity(
-    @EmbeddedId
-    val id: ConnectionId,
+    @Id
+    @Column(name = "connection_id", nullable = false, length = 36)
+    val id: String,
 
-    @Embedded
-    @AttributeOverrides(
-        AttributeOverride(name = "value", column = Column(name = "connection_name"))
-    )
-    val name: ConnectionName,
+    @Column(name = "connection_name", nullable = false, length = 100)
+    val name: String,
 
-    @Embedded
-    @AttributeOverrides(
-        AttributeOverride(name = "value", column = Column(name = "host"))
-    )
-    val host: Host,
+    @Column(name = "host", nullable = false, length = 255)
+    val host: String,
 
-    @Embedded
-    @AttributeOverrides(
-        AttributeOverride(name = "value", column = Column(name = "port"))
-    )
-    val port: Port,
+    @Column(name = "port", nullable = false)
+    val port: Int,
 
-    @Column(name = "ssl_enabled")
-    val sslEnabled: Boolean,
+    @Column(name = "ssl_enabled", nullable = false)
+    val sslEnabled: Boolean = false,
 
-    @Column(name = "sasl_enabled")
-    val saslEnabled: Boolean,
+    @Column(name = "sasl_enabled", nullable = false)
+    val saslEnabled: Boolean = false,
 
-    @Column(name = "username")
-    val username: String?,
+    @Column(name = "username", length = 100)
+    val username: String? = null,
 
-    @Column(name = "password")
-    val password: String?,
+    @Column(name = "password", length = 255)
+    val password: String? = null,
 
-    @Column(name = "created_at")
-    val createdAt: LocalDateTime,
+    @Column(name = "created_at", nullable = false)
+    val createdAt: LocalDateTime = LocalDateTime.now(),
 
-    @Column(name = "updated_at")
-    var updatedAt: LocalDateTime,
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: LocalDateTime = LocalDateTime.now(),
 
     @Column(name = "last_connected")
-    var lastConnected: LocalDateTime?
+    var lastConnected: LocalDateTime? = null,
+
+    @Column(name = "is_deleted", nullable = false)
+    var isDeleted: Boolean = false
 ) {
+    constructor() : this(
+        id = "",
+        name = "",
+        host = "",
+        port = 0,
+        sslEnabled = false,
+        saslEnabled = false,
+        username = null,
+        password = null,
+        createdAt = LocalDateTime.now(),
+        updatedAt = LocalDateTime.now(),
+        lastConnected = null,
+        isDeleted = false
+    )
+
     fun toDomain(): Connection {
-        return Connection(
-            name = name,
-            host = host,
-            port = port,
+        val connection = Connection(
+            name = ConnectionName(name),
+            host = Host(host),
+            port = Port(port),
             sslEnabled = sslEnabled,
             saslEnabled = saslEnabled,
             username = username,
             password = password,
             createdAt = createdAt,
             updatedAt = updatedAt,
-            lastConnected = lastConnected
+            lastConnected = lastConnected,
+            isDeleted = isDeleted
         )
+
+        connection.setId(ConnectionId(this.id))
+
+        return connection
     }
 
     companion object {
         fun fromDomain(connection: Connection): ConnectionEntity {
             return ConnectionEntity(
-                id = connection.getId(),
-                name = connection.name,
-                host = connection.host,
-                port = connection.port,
+                id = connection.getId().value,
+                name = connection.name.value,
+                host = connection.host.value,
+                port = connection.port.value,
                 sslEnabled = connection.sslEnabled,
                 saslEnabled = connection.saslEnabled,
                 username = connection.username,
                 password = connection.password,
                 createdAt = connection.createdAt,
                 updatedAt = connection.updatedAt,
-                lastConnected = connection.lastConnected
+                lastConnected = connection.lastConnected,
+                isDeleted = connection.isDeleted
             )
         }
     }

@@ -6,25 +6,18 @@ server:
 spring:
   application:
     name: kafka-kopanda
-  redis:
-    host: localhost
-    port: 6379
-    timeout: 2000ms
-    lettuce:
-      pool:
-        max-active: 8
-        max-idle: 8
-        min-idle: 0
-        max-wait: -1ms
-    connect-timeout: 2000ms
-    socket-timeout: 2000ms
 
-  # H2 데이터베이스 설정
   datasource:
-    url: jdbc:h2:mem:kopanda;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:kopanda;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL;DATABASE_TO_UPPER=false;INIT=CREATE SCHEMA IF NOT EXISTS PUBLIC
     driver-class-name: org.h2.Driver
     username: sa
     password:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
 
   h2:
     console:
@@ -37,6 +30,9 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
     show-sql: true
     properties:
       hibernate:
@@ -44,6 +40,17 @@ spring:
         dialect: org.hibernate.dialect.H2Dialect
         jdbc:
           time_zone: Asia/Seoul
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        connection:
+          provider_disables_autocommit: true
+        temp:
+          use_jdbc_metadata_defaults: false
+        hbm2ddl:
+          auto: create-drop
+        packages_to_scan: com.sleekydz86.kopanda.infrastructure.persistence.entities
+    defer-datasource-initialization: false
 
   jackson:
     default-property-inclusion: non_null
@@ -57,9 +64,18 @@ spring:
   profiles:
     active: dev
 
+logging:
+  level:
+    com.sleekydz86.kopanda: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.orm.jpa: DEBUG
+    org.springframework.transaction: DEBUG
+    org.hibernate.tool.schema: DEBUG
+
 kafka:
   client:
-    bootstrap-servers: localhost:29092
+    bootstrap-servers: localhost:9092
     default-timeout-ms: 5000
     request-timeout-ms: 3000
     metadata-max-age-ms: 300000
@@ -129,175 +145,10 @@ kafka:
     reconnect-backoff-ms: 50
     retry-backoff-ms: 100
 
-# 애플리케이션 설정
 app:
   connection:
-    default-port: 29092 # Docker Kafka 컨테이너 포트
+    default-port: 9092
     test-timeout-ms: 5000
     max-connections: 100
     connection-pool-size: 10
-    default-host: localhost # Docker 호스트
-
-  message:
-    default-page-size: 20
-    max-page-size: 1000
-    preview-timeout-ms: 10000
-    search-timeout-ms: 30000
-    max-message-size: 1048576
-
-  topic:
-    default-replication-factor: 1
-    default-partitions: 1
-    max-partitions: 1000
-    max-replication-factor: 10
-
-  monitoring:
-    metrics-interval-ms: 30000
-    health-check-interval-ms: 60000
-    alert-check-interval-ms: 300000
-
-  security:
-    cors:
-      allowed-origins:
-        - "http://localhost:3000"
-        - "http://localhost:8080"
-        - "http://127.0.0.1:3000"
-        - "http://127.0.0.1:8080"
-      allowed-methods:
-        - GET
-        - POST
-        - PUT
-        - DELETE
-        - OPTIONS
-      allowed-headers:
-        - "*"
-      allow-credentials: true
-      max-age: 3600
-
-    rate-limit:
-      enabled: true
-      requests-per-minute: 1000
-      burst-capacity: 100
-
-# 로깅 설정
-logging:
-  level:
-    com.sleekydz86.kopanda: DEBUG
-    org.apache.kafka: INFO
-    org.springframework.web: INFO
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    org.springframework.data.redis: WARN
-    io.lettuce.core: WARN
-    root: INFO
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-  file:
-    name: logs/kafka-kopanda.log
-    max-size: 100MB
-    max-history: 30
-
-# Spring Boot Actuator 설정
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-      base-path: /actuator
-  endpoint:
-    health:
-      show-details: when-authorized
-      show-components: always
-    metrics:
-      enabled: true
-    prometheus:
-      enabled: true
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-    tags:
-      application: ${spring.application.name}
-      version: ${project.version}
-
----
-spring:
-  config:
-    activate:
-      on-profile: dev
-
-logging:
-  level:
-    com.sleekydz86.kopanda: DEBUG
-    org.apache.kafka: DEBUG
-    org.springframework.web: DEBUG
-
-kafka:
-  client:
-    default-timeout-ms: 3000
-    request-timeout-ms: 2000
-
-app:
-  connection:
-    test-timeout-ms: 3000
-  message:
-    preview-timeout-ms: 5000
-    search-timeout-ms: 15000
-
----
-spring:
-  config:
-    activate:
-      on-profile: prod
-
-logging:
-  level:
-    com.sleekydz86.kopanda: INFO
-    org.apache.kafka: WARN
-    org.springframework.web: WARN
-  file:
-    max-size: 500MB
-    max-history: 90
-
-kafka:
-  client:
-    default-timeout-ms: 10000
-    request-timeout-ms: 5000
-
-app:
-  connection:
-    test-timeout-ms: 10000
-  message:
-    preview-timeout-ms: 30000
-    search-timeout-ms: 60000
-  security:
-    cors:
-      allowed-origins:
-        - "https://your-production-domain.com"
-    rate-limit:
-      requests-per-minute: 500
-      burst-capacity: 50
-
----
-spring:
-  config:
-    activate:
-      on-profile: test
-
-logging:
-  level:
-    com.sleekydz86.kopanda: DEBUG
-    root: INFO
-
-kafka:
-  client:
-    default-timeout-ms: 1000
-    request-timeout-ms: 1000
-
-app:
-  connection:
-    test-timeout-ms: 1000
-  message:
-    preview-timeout-ms: 2000
-    search-timeout-ms: 5000
+    default-host: localhost
