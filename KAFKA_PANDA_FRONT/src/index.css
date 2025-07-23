@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+// vite.config.ts
+// Vite 설정 파일입니다. TypeScript를 사용하도록 변경되었습니다.
+import {
+    fileURLToPath,
+    URL
+}
+
+from 'node:url';
+
+import {
+    defineConfig
+}
+
+from 'vite';
+import vue from '@vitejs/plugin-vue';
+
+// https://vitejs.dev/config/
+export default defineConfig({
+
+    plugins: [ vue(),
+    ],
+    resolve: {
+        alias: {
+            '@': fileURLToPath(new URL('./src', import.meta.url))
+        }
+    }
+});

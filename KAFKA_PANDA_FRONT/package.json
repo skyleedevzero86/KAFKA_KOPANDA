@@ -6,14 +6,33 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false"
   },
   "dependencies": {
+    "@antv/g2": "^5.3.5",
+    "@fortawesome/fontawesome-svg-core": "^7.0.0",
+    "@fortawesome/free-solid-svg-icons": "^7.0.0",
+    "@fortawesome/vue-fontawesome": "^3.1.0",
+    "@handsontable/vue": "^16.0.1",
+    "ag-grid-community": "^34.0.2",
+    "ag-grid-vue": "^31.3.4",
+    "dayjs": "^1.11.13",
+    "handsontable": "^16.0.1",
+    "lodash": "^4.17.21",
+    "pinia": "^3.0.3",
+    "remixicon": "^4.6.0",
+    "vee-validate": "^4.5.8",
     "vue": "^3.5.17"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.0",
+    "@vue/tsconfig": "^0.5.1",
+    "eslint": "^9.31.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.5.4",
     "vite": "^7.0.0",
-    "vite-plugin-vue-devtools": "^7.7.7"
+    "vite-plugin-vue-devtools": "^7.7.7",
+    "vue-tsc": "^2.0.29"
   }
 }
