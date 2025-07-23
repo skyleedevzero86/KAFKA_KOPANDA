@@ -1,6 +1,7 @@
 package com.sleekydz86.kopanda.application.services
 
 import com.sleekydz86.kopanda.application.dto.*
+import com.sleekydz86.kopanda.application.ports.`in`.ActivityManagementUseCase
 import com.sleekydz86.kopanda.application.ports.`in`.ConnectionManagementUseCase
 import com.sleekydz86.kopanda.application.ports.`in`.KafkaManagementUseCase
 import com.sleekydz86.kopanda.application.ports.out.ConnectionRepository
@@ -20,7 +21,8 @@ import org.slf4j.LoggerFactory
 @Transactional
 class KafkaApplicationService(
     private val connectionRepository: ConnectionRepository,
-    private val kafkaRepository: KafkaRepository
+    private val kafkaRepository: KafkaRepository,
+    private val activityManagementUseCase: ActivityManagementUseCase
 ) : ConnectionManagementUseCase, KafkaManagementUseCase {
 
     private val logger = LoggerFactory.getLogger(KafkaApplicationService::class.java)
@@ -46,6 +48,12 @@ class KafkaApplicationService(
         )
 
         val savedConnection = connectionRepository.save(connection)
+
+        activityManagementUseCase.logConnectionCreated(
+            connectionName = request.name,
+            connectionId = savedConnection.getId().value
+        )
+
         return savedConnection.toConnectionDto()
     }
 
@@ -134,6 +142,11 @@ class KafkaApplicationService(
                 topicCount = topicList.size
             )
         } catch (e: Exception) {
+            activityManagementUseCase.logConnectionOffline(
+                connectionName = connection.name.value,
+                connectionId = connection.getId().value
+            )
+
             ConnectionStatus(
                 connectionId = id,
                 status = ConnectionStatusType.ERROR,
