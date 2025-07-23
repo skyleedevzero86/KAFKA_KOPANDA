@@ -1,3 +1,15 @@
+.gradle/
+.vscode/
+node_modules/
+pnpm-lock.yaml
+.env
+.vite/
+build/
+bin/
+.idea/
+out/
+*.iml
+HELP.md
 # Compiled class file
 *.class
 
