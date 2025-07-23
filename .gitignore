@@ -10,7 +10,10 @@ bin/
 out/
 *.iml
 HELP.md
+<<<<<<< HEAD
+=======
 
+>>>>>>> origin/main
 # Compiled class file
 *.class
 
