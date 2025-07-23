@@ -24,4 +24,4 @@ class KafkaConfig : WebSocketMessageBrokerConfigurer {
         registry.enableSimpleBroker("/topic")
         registry.setApplicationDestinationPrefixes("/app")
     }
-}
+} 
