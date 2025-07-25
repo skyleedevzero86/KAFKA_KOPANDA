@@ -1,7 +1,5 @@
 package com.sleekydz86.kopanda.application.ports.`in`
 
-import com.sleekydz86.kopanda.application.dto.*
-<<<<<<< HEAD
 import com.sleekydz86.kopanda.application.dto.common.MessageSearchCriteria
 import com.sleekydz86.kopanda.application.dto.common.OffsetType
 import com.sleekydz86.kopanda.application.dto.request.CreateTopicRequest
@@ -12,8 +10,6 @@ import com.sleekydz86.kopanda.application.dto.response.MessageDto
 import com.sleekydz86.kopanda.application.dto.response.PaginatedResponse
 import com.sleekydz86.kopanda.application.dto.response.TopicDetailDto
 import com.sleekydz86.kopanda.application.dto.response.TopicDto
-=======
->>>>>>> origin/main
 
 interface KafkaManagementUseCase {
     suspend fun getTopics(connectionId: String): List<TopicDto>

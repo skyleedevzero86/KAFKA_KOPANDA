@@ -1,26 +1,15 @@
 package com.sleekydz86.kopanda.application.services
 
-<<<<<<< HEAD
 import com.sleekydz86.kopanda.application.dto.response.ActivityDto
+import com.sleekydz86.kopanda.application.dto.enums.ActivityType
 import com.sleekydz86.kopanda.application.ports.`in`.ActivityManagementUseCase
 import com.sleekydz86.kopanda.application.ports.out.ActivityRepository
 import com.sleekydz86.kopanda.domain.entities.Activity
 import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityMessage
 import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityTitle
+import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType as DomainActivityType
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType
-=======
-import com.sleekydz86.kopanda.application.dto.ActivityDto
-import com.sleekydz86.kopanda.application.ports.`in`.ActivityManagementUseCase
-import com.sleekydz86.kopanda.application.ports.out.ActivityRepository
-import com.sleekydz86.kopanda.domain.entities.Activity
-import com.sleekydz86.kopanda.domain.valueobjects.ActivityMessage
-import com.sleekydz86.kopanda.domain.valueobjects.ActivityTitle
-import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
-import com.sleekydz86.kopanda.domain.valueobjects.ActivityType
->>>>>>> origin/main
 
 @Service
 @Transactional
@@ -53,7 +42,7 @@ class ActivityService(
 
     override suspend fun logError(message: String, connectionId: String?) {
         val activity = Activity(
-            type = ActivityType("ERROR_OCCURRED"),
+            type = DomainActivityType("ERROR_OCCURRED"),
             title = ActivityTitle("오류 발생"),
             message = ActivityMessage(message),
             connectionId = connectionId
@@ -65,19 +54,11 @@ class ActivityService(
         return ActivityDto(
             id = this.getId().value,
             type = when (this.type.value) {
-<<<<<<< HEAD
-                "CONNECTION_CREATED" -> com.sleekydz86.kopanda.application.dto.enums.ActivityType.CONNECTION_CREATED
-                "TOPIC_CREATED" -> com.sleekydz86.kopanda.application.dto.enums.ActivityType.TOPIC_CREATED
-                "CONNECTION_OFFLINE" -> com.sleekydz86.kopanda.application.dto.enums.ActivityType.CONNECTION_OFFLINE
-                "ERROR_OCCURRED" -> com.sleekydz86.kopanda.application.dto.enums.ActivityType.ERROR_OCCURRED
-                else -> com.sleekydz86.kopanda.application.dto.enums.ActivityType.ERROR_OCCURRED
-=======
-                "CONNECTION_CREATED" -> com.sleekydz86.kopanda.application.dto.ActivityType.CONNECTION_CREATED
-                "TOPIC_CREATED" -> com.sleekydz86.kopanda.application.dto.ActivityType.TOPIC_CREATED
-                "CONNECTION_OFFLINE" -> com.sleekydz86.kopanda.application.dto.ActivityType.CONNECTION_OFFLINE
-                "ERROR_OCCURRED" -> com.sleekydz86.kopanda.application.dto.ActivityType.ERROR_OCCURRED
-                else -> com.sleekydz86.kopanda.application.dto.ActivityType.ERROR_OCCURRED
->>>>>>> origin/main
+                "CONNECTION_CREATED" -> ActivityType.CONNECTION_CREATED
+                "TOPIC_CREATED" -> ActivityType.TOPIC_CREATED
+                "CONNECTION_OFFLINE" -> ActivityType.CONNECTION_OFFLINE
+                "ERROR_OCCURRED" -> ActivityType.ERROR_OCCURRED
+                else -> ActivityType.ERROR_OCCURRED
             },
             title = this.title.value,
             message = this.message.value,

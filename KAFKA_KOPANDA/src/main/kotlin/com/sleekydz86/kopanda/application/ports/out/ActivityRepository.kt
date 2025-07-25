@@ -1,10 +1,7 @@
 package com.sleekydz86.kopanda.application.ports.out
 
 import com.sleekydz86.kopanda.domain.entities.Activity
-<<<<<<< HEAD
-=======
-import com.sleekydz86.kopanda.domain.valueobjects.ActivityId
->>>>>>> origin/main
+
 
 interface ActivityRepository {
     suspend fun save(activity: Activity): Activity
