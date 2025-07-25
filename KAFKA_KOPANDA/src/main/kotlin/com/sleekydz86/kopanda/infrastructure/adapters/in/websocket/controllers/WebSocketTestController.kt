@@ -5,12 +5,7 @@ import com.sleekydz86.kopanda.application.dto.enums.ConnectionStatusType
 import com.sleekydz86.kopanda.application.dto.response.KafkaMetricsDto
 import kotlinx.coroutines.runBlocking
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 
 @RestController
@@ -107,7 +102,8 @@ class WebSocketTestController(
                 "/topic/connection-status/{connectionId}",
                 "/topic/metrics/{connectionId}",
                 "/topic/all-connections",
-                "/topic/global"
+                "/topic/global",
+                "/topic/connection-change"
             ),
             "timestamp" to LocalDateTime.now()
         ))

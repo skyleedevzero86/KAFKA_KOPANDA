@@ -5,10 +5,12 @@ import com.sleekydz86.kopanda.application.ports.out.ConnectionRepository
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 import com.sleekydz86.kopanda.infrastructure.persistence.entities.ConnectionEntity
 import com.sleekydz86.kopanda.infrastructure.persistence.repositories.ConnectionJpaRepository
+import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
 @Repository
+@Primary
 @Transactional
 class ConnectionRepositoryAdapter(
     private val connectionJpaRepository: ConnectionJpaRepository

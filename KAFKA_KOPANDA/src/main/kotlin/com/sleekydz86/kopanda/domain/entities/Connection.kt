@@ -1,16 +1,9 @@
 package com.sleekydz86.kopanda.domain.entities
 
-<<<<<<< HEAD
 import com.sleekydz86.kopanda.domain.valueobjects.names.ConnectionName
 import com.sleekydz86.kopanda.domain.valueobjects.network.Host
 import com.sleekydz86.kopanda.domain.valueobjects.network.Port
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
-=======
-import com.sleekydz86.kopanda.domain.valueobjects.ConnectionName
-import com.sleekydz86.kopanda.domain.valueobjects.Host
-import com.sleekydz86.kopanda.domain.valueobjects.Port
-import com.sleekydz86.kopanda.domain.valueobjects.ConnectionId
->>>>>>> origin/main
 import com.sleekydz86.kopanda.domain.events.ConnectionCreatedEvent
 import com.sleekydz86.kopanda.domain.events.ConnectionUpdatedEvent
 import com.sleekydz86.kopanda.domain.events.ConnectionDeletedEvent

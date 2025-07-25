@@ -1,6 +1,5 @@
 package com.sleekydz86.kopanda.application.services
 
-<<<<<<< HEAD
 import com.sleekydz86.kopanda.application.dto.common.BrokerInfo
 import com.sleekydz86.kopanda.application.dto.common.ConnectionStatus
 import com.sleekydz86.kopanda.application.dto.common.ConnectionTestResult
@@ -19,9 +18,6 @@ import com.sleekydz86.kopanda.application.dto.response.MessageDto
 import com.sleekydz86.kopanda.application.dto.response.PaginatedResponse
 import com.sleekydz86.kopanda.application.dto.response.TopicDetailDto
 import com.sleekydz86.kopanda.application.dto.response.TopicDto
-=======
-import com.sleekydz86.kopanda.application.dto.*
->>>>>>> origin/main
 import com.sleekydz86.kopanda.application.ports.`in`.ActivityManagementUseCase
 import com.sleekydz86.kopanda.application.ports.`in`.ConnectionManagementUseCase
 import com.sleekydz86.kopanda.application.ports.`in`.KafkaManagementUseCase
@@ -31,14 +27,10 @@ import com.sleekydz86.kopanda.domain.entities.Connection
 import com.sleekydz86.kopanda.domain.entities.Topic
 import com.sleekydz86.kopanda.domain.entities.Partition
 import com.sleekydz86.kopanda.domain.entities.Message
-<<<<<<< HEAD
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
-=======
-import com.sleekydz86.kopanda.domain.valueobjects.ConnectionId
->>>>>>> origin/main
 import com.sleekydz86.kopanda.shared.domain.DomainException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -239,11 +231,7 @@ class KafkaApplicationService(
 
     override suspend fun getTopicDetails(connectionId: String, topicName: String): TopicDetailDto {
         val connection = getConnectionOrThrow(connectionId)
-<<<<<<< HEAD
         val topic = kafkaRepository.getTopicDetails(connection, TopicName(topicName))
-=======
-        val topic = kafkaRepository.getTopicDetails(connection, com.sleekydz86.kopanda.domain.valueobjects.TopicName(topicName))
->>>>>>> origin/main
             ?: throw DomainException("Topic '$topicName' not found")
         return topic.toTopicDetailDto()
     }
@@ -262,11 +250,7 @@ class KafkaApplicationService(
 
     override suspend fun deleteTopic(connectionId: String, topicName: String) {
         val connection = getConnectionOrThrow(connectionId)
-<<<<<<< HEAD
         kafkaRepository.deleteTopic(connection, TopicName(topicName))
-=======
-        kafkaRepository.deleteTopic(connection, com.sleekydz86.kopanda.domain.valueobjects.TopicName(topicName))
->>>>>>> origin/main
     }
 
     override suspend fun getMessages(
@@ -278,11 +262,7 @@ class KafkaApplicationService(
         limit: Int
     ): PaginatedResponse<MessageDto> {
         val connection = getConnectionOrThrow(connectionId)
-<<<<<<< HEAD
         val topic = kafkaRepository.getTopicDetails(connection, TopicName(topicName))
-=======
-        val topic = kafkaRepository.getTopicDetails(connection, com.sleekydz86.kopanda.domain.valueobjects.TopicName(topicName))
->>>>>>> origin/main
             ?: throw DomainException("Topic '$topicName' not found")
 
         val partition = topic.getPartition(partitionNumber)
@@ -298,11 +278,7 @@ class KafkaApplicationService(
             connection,
             topic,
             partition,
-<<<<<<< HEAD
             Offset(actualOffset),
-=======
-            com.sleekydz86.kopanda.domain.valueobjects.Offset(actualOffset),
->>>>>>> origin/main
             limit
         )
 
@@ -317,11 +293,7 @@ class KafkaApplicationService(
 
     override suspend fun sendMessage(connectionId: String, topicName: String, request: SendMessageRequest) {
         val connection = getConnectionOrThrow(connectionId)
-<<<<<<< HEAD
         val topic = kafkaRepository.getTopicDetails(connection, TopicName(topicName))
-=======
-        val topic = kafkaRepository.getTopicDetails(connection, com.sleekydz86.kopanda.domain.valueobjects.TopicName(topicName))
->>>>>>> origin/main
             ?: throw DomainException("Topic '$topicName' not found")
 
         kafkaRepository.sendMessage(
@@ -329,11 +301,7 @@ class KafkaApplicationService(
             topic,
             request.key,
             request.value,
-<<<<<<< HEAD
             request.partition?.let { PartitionNumber(it) },
-=======
-            request.partition?.let { com.sleekydz86.kopanda.domain.valueobjects.PartitionNumber(it) },
->>>>>>> origin/main
             request.headers
         )
     }

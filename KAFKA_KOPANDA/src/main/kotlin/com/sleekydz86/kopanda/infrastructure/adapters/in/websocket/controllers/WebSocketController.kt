@@ -57,4 +57,31 @@ class WebSocketController(
         )
         messagingTemplate.convertAndSend("/topic/metrics/$connectionId", message)
     }
+
+    fun broadcastGlobalUpdate(type: String, data: Any) {
+        val message = WebSocketMessage(
+            type = type,
+            data = data,
+            timestamp = LocalDateTime.now()
+        )
+        messagingTemplate.convertAndSend("/topic/global", message)
+    }
+
+    fun broadcastConnectionChange(connectionId: String) {
+        val message = WebSocketMessage(
+            type = "connection-change",
+            data = mapOf("connectionId" to connectionId),
+            timestamp = LocalDateTime.now()
+        )
+        messagingTemplate.convertAndSend("/topic/connection-change", message)
+    }
+
+    fun broadcastAllConnectionsUpdate() {
+        val message = WebSocketMessage(
+            type = "all-connections-update",
+            data = mapOf("timestamp" to LocalDateTime.now()),
+            timestamp = LocalDateTime.now()
+        )
+        messagingTemplate.convertAndSend("/topic/all-connections", message)
+    }
 }
