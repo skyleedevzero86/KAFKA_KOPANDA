@@ -2,8 +2,13 @@ package com.sleekydz86.kopanda.domain.entities
 
 import com.sleekydz86.kopanda.domain.events.TopicCreatedEvent
 import com.sleekydz86.kopanda.domain.events.TopicDeletedEvent
+<<<<<<< HEAD
 import com.sleekydz86.kopanda.domain.valueobjects.topic.TopicConfig
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
+=======
+import com.sleekydz86.kopanda.domain.valueobjects.TopicConfig
+import com.sleekydz86.kopanda.domain.valueobjects.TopicName
+>>>>>>> origin/main
 import com.sleekydz86.kopanda.shared.domain.AggregateRoot
 import jakarta.persistence.*
 import java.time.LocalDateTime

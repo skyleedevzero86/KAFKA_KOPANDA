@@ -1,10 +1,14 @@
 package com.sleekydz86.kopanda.infrastructure.persistence.entities
 
 import com.sleekydz86.kopanda.domain.entities.Connection
+<<<<<<< HEAD
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 import com.sleekydz86.kopanda.domain.valueobjects.names.ConnectionName
 import com.sleekydz86.kopanda.domain.valueobjects.network.Host
 import com.sleekydz86.kopanda.domain.valueobjects.network.Port
+=======
+import com.sleekydz86.kopanda.domain.valueobjects.*
+>>>>>>> origin/main
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
