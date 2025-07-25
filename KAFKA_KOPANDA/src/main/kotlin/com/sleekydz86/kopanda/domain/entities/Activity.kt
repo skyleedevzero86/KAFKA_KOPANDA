@@ -1,9 +1,16 @@
 package com.sleekydz86.kopanda.domain.entities
 
+<<<<<<< HEAD
+import com.sleekydz86.kopanda.domain.valueobjects.ids.ActivityId
+import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityMessage
+import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityTitle
+import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType
+=======
 import com.sleekydz86.kopanda.domain.valueobjects.ActivityId
 import com.sleekydz86.kopanda.domain.valueobjects.ActivityMessage
 import com.sleekydz86.kopanda.domain.valueobjects.ActivityTitle
 import com.sleekydz86.kopanda.domain.valueobjects.ActivityType
+>>>>>>> origin/main
 import com.sleekydz86.kopanda.shared.domain.AggregateRoot
 import java.time.LocalDateTime
 
