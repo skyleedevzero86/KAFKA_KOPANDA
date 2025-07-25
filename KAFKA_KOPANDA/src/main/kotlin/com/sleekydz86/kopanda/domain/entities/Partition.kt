@@ -1,9 +1,9 @@
 package com.sleekydz86.kopanda.domain.entities
 
-import com.sleekydz86.kopanda.domain.valueobjects.BrokerId
-import com.sleekydz86.kopanda.domain.valueobjects.Offset
-import com.sleekydz86.kopanda.domain.valueobjects.OffsetRange
-import com.sleekydz86.kopanda.domain.valueobjects.PartitionNumber
+import com.sleekydz86.kopanda.domain.valueobjects.ids.BrokerId
+import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
+import com.sleekydz86.kopanda.domain.valueobjects.message.OffsetRange
+import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
 import jakarta.persistence.*
 import java.time.LocalDateTime
 

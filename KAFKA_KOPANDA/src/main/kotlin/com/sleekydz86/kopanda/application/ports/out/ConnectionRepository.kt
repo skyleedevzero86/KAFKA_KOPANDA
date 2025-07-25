@@ -1,7 +1,7 @@
 package com.sleekydz86.kopanda.application.ports.out
 
 import com.sleekydz86.kopanda.domain.entities.Connection
-import com.sleekydz86.kopanda.domain.valueobjects.ConnectionId
+import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 
 interface ConnectionRepository {
     suspend fun findAll(): List<Connection>

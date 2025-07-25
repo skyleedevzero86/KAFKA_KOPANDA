@@ -1,10 +1,10 @@
 package com.sleekydz86.kopanda.infrastructure.persistence.entities
 
 import com.sleekydz86.kopanda.domain.entities.Activity
-import com.sleekydz86.kopanda.domain.valueobjects.ActivityId
-import com.sleekydz86.kopanda.domain.valueobjects.ActivityMessage
-import com.sleekydz86.kopanda.domain.valueobjects.ActivityTitle
-import com.sleekydz86.kopanda.domain.valueobjects.ActivityType
+import com.sleekydz86.kopanda.domain.valueobjects.ids.ActivityId
+import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityMessage
+import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityTitle
+import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType
 import jakarta.persistence.*
 import java.time.LocalDateTime
 

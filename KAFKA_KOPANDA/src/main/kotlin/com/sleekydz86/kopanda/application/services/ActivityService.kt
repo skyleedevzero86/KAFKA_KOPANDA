@@ -1,14 +1,14 @@
 package com.sleekydz86.kopanda.application.services
 
-import com.sleekydz86.kopanda.application.dto.ActivityDto
+import com.sleekydz86.kopanda.application.dto.response.ActivityDto
 import com.sleekydz86.kopanda.application.ports.`in`.ActivityManagementUseCase
 import com.sleekydz86.kopanda.application.ports.out.ActivityRepository
 import com.sleekydz86.kopanda.domain.entities.Activity
-import com.sleekydz86.kopanda.domain.valueobjects.ActivityMessage
-import com.sleekydz86.kopanda.domain.valueobjects.ActivityTitle
+import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityMessage
+import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityTitle
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import com.sleekydz86.kopanda.domain.valueobjects.ActivityType
+import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType
 
 @Service
 @Transactional
@@ -53,11 +53,11 @@ class ActivityService(
         return ActivityDto(
             id = this.getId().value,
             type = when (this.type.value) {
-                "CONNECTION_CREATED" -> com.sleekydz86.kopanda.application.dto.ActivityType.CONNECTION_CREATED
-                "TOPIC_CREATED" -> com.sleekydz86.kopanda.application.dto.ActivityType.TOPIC_CREATED
-                "CONNECTION_OFFLINE" -> com.sleekydz86.kopanda.application.dto.ActivityType.CONNECTION_OFFLINE
-                "ERROR_OCCURRED" -> com.sleekydz86.kopanda.application.dto.ActivityType.ERROR_OCCURRED
-                else -> com.sleekydz86.kopanda.application.dto.ActivityType.ERROR_OCCURRED
+                "CONNECTION_CREATED" -> com.sleekydz86.kopanda.application.dto.enums.ActivityType.CONNECTION_CREATED
+                "TOPIC_CREATED" -> com.sleekydz86.kopanda.application.dto.enums.ActivityType.TOPIC_CREATED
+                "CONNECTION_OFFLINE" -> com.sleekydz86.kopanda.application.dto.enums.ActivityType.CONNECTION_OFFLINE
+                "ERROR_OCCURRED" -> com.sleekydz86.kopanda.application.dto.enums.ActivityType.ERROR_OCCURRED
+                else -> com.sleekydz86.kopanda.application.dto.enums.ActivityType.ERROR_OCCURRED
             },
             title = this.title.value,
             message = this.message.value,

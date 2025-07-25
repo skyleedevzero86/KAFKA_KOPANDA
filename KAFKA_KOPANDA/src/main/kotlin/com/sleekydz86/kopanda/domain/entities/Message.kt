@@ -1,10 +1,10 @@
 package com.sleekydz86.kopanda.domain.entities
 
-import com.sleekydz86.kopanda.domain.valueobjects.MessageKey
-import com.sleekydz86.kopanda.domain.valueobjects.MessageValue
-import com.sleekydz86.kopanda.domain.valueobjects.Offset
-import com.sleekydz86.kopanda.domain.valueobjects.PartitionNumber
-import com.sleekydz86.kopanda.domain.valueobjects.Timestamp
+import com.sleekydz86.kopanda.domain.valueobjects.message.MessageKey
+import com.sleekydz86.kopanda.domain.valueobjects.message.MessageValue
+import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
+import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
+import com.sleekydz86.kopanda.domain.valueobjects.message.Timestamp
 import jakarta.persistence.*
 import java.time.LocalDateTime
 

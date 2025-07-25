@@ -1,6 +1,6 @@
 package com.sleekydz86.kopanda.application.ports.`in`
 
-import com.sleekydz86.kopanda.application.dto.ActivityDto
+import com.sleekydz86.kopanda.application.dto.response.ActivityDto
 
 
 interface ActivityManagementUseCase {

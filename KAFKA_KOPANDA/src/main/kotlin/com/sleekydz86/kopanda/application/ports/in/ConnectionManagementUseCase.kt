@@ -1,6 +1,11 @@
 package com.sleekydz86.kopanda.application.ports.`in`
 
 import com.sleekydz86.kopanda.application.dto.*
+import com.sleekydz86.kopanda.application.dto.common.ConnectionStatus
+import com.sleekydz86.kopanda.application.dto.common.ConnectionTestResult
+import com.sleekydz86.kopanda.application.dto.request.CreateConnectionRequest
+import com.sleekydz86.kopanda.application.dto.request.UpdateConnectionRequest
+import com.sleekydz86.kopanda.application.dto.response.ConnectionDto
 
 interface ConnectionManagementUseCase {
     suspend fun getConnections(): List<ConnectionDto>

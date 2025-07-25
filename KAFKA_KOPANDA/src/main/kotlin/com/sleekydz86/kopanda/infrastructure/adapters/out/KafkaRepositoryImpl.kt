@@ -1,15 +1,17 @@
 package com.sleekydz86.kopanda.infrastructure.adapters.out
 
-import com.sleekydz86.kopanda.application.dto.ConsumerGroupDto
-import com.sleekydz86.kopanda.application.dto.KafkaMetricsDto
-import com.sleekydz86.kopanda.application.dto.MessageSearchCriteria
+import com.sleekydz86.kopanda.application.dto.response.ConsumerGroupDto
+import com.sleekydz86.kopanda.application.dto.response.KafkaMetricsDto
+import com.sleekydz86.kopanda.application.dto.common.MessageSearchCriteria
 import com.sleekydz86.kopanda.application.ports.out.KafkaRepository
 import com.sleekydz86.kopanda.domain.entities.Connection
 import com.sleekydz86.kopanda.domain.entities.Message
 import com.sleekydz86.kopanda.domain.entities.Topic
-import com.sleekydz86.kopanda.domain.valueobjects.Offset
-import com.sleekydz86.kopanda.domain.valueobjects.PartitionNumber
-import com.sleekydz86.kopanda.domain.valueobjects.TopicName
+import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
+import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
+import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
+import com.sleekydz86.kopanda.domain.valueobjects.ids.BrokerId
+import com.sleekydz86.kopanda.domain.valueobjects.topic.TopicConfig
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewTopic
@@ -37,10 +39,10 @@ class KafkaRepositoryImpl : KafkaRepository {
                 val topicDetails = adminClient.describeTopics(listOf(topicName)).all().get()[topicName]
                 val partitions = topicDetails?.partitions()?.map { partitionInfo ->
                     com.sleekydz86.kopanda.domain.entities.Partition(
-                        partitionNumber = com.sleekydz86.kopanda.domain.valueobjects.PartitionNumber(partitionInfo.partition()),
-                        leader = com.sleekydz86.kopanda.domain.valueobjects.BrokerId(partitionInfo.leader().id()),
-                        replicas = partitionInfo.replicas().map { com.sleekydz86.kopanda.domain.valueobjects.BrokerId(it.id()) },
-                        inSyncReplicas = partitionInfo.isr().map { com.sleekydz86.kopanda.domain.valueobjects.BrokerId(it.id()) },
+                        partitionNumber = PartitionNumber(partitionInfo.partition()),
+                        leader = BrokerId(partitionInfo.leader().id()),
+                        replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
+                        inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
                         earliestOffset = 0,
                         latestOffset = 0
                     )
@@ -48,7 +50,7 @@ class KafkaRepositoryImpl : KafkaRepository {
 
                 Topic(
                     name = TopicName(topicName),
-                    config = com.sleekydz86.kopanda.domain.valueobjects.TopicConfig(
+                    config = TopicConfig(
                         partitionCount = partitions.size,
                         replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
                         config = emptyMap()
@@ -70,10 +72,10 @@ class KafkaRepositoryImpl : KafkaRepository {
 
             val partitions = topicDetails.partitions().map { partitionInfo ->
                 com.sleekydz86.kopanda.domain.entities.Partition(
-                    partitionNumber = com.sleekydz86.kopanda.domain.valueobjects.PartitionNumber(partitionInfo.partition()),
-                    leader = com.sleekydz86.kopanda.domain.valueobjects.BrokerId(partitionInfo.leader().id()),
-                    replicas = partitionInfo.replicas().map { com.sleekydz86.kopanda.domain.valueobjects.BrokerId(it.id()) },
-                    inSyncReplicas = partitionInfo.isr().map { com.sleekydz86.kopanda.domain.valueobjects.BrokerId(it.id()) },
+                    partitionNumber = PartitionNumber(partitionInfo.partition()),
+                    leader = BrokerId(partitionInfo.leader().id()),
+                    replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
+                    inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
                     earliestOffset = 0,
                     latestOffset = 0
                 )
@@ -81,7 +83,7 @@ class KafkaRepositoryImpl : KafkaRepository {
 
             Topic(
                 name = topicName,
-                config = com.sleekydz86.kopanda.domain.valueobjects.TopicConfig(
+                config = TopicConfig(
                     partitionCount = partitions.size,
                     replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
                     config = emptyMap()
