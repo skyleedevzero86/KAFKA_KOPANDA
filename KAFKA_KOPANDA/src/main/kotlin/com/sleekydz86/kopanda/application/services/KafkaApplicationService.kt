@@ -1,32 +1,14 @@
 package com.sleekydz86.kopanda.application.services
 
-import com.sleekydz86.kopanda.application.dto.common.BrokerInfo
-import com.sleekydz86.kopanda.application.dto.common.ConnectionStatus
-import com.sleekydz86.kopanda.application.dto.common.ConnectionTestResult
-import com.sleekydz86.kopanda.application.dto.common.MessageSearchCriteria
-import com.sleekydz86.kopanda.application.dto.common.OffsetType
-import com.sleekydz86.kopanda.application.dto.common.PartitionDto
+import com.sleekydz86.kopanda.application.dto.common.*
 import com.sleekydz86.kopanda.application.dto.enums.ConnectionStatusType
-import com.sleekydz86.kopanda.application.dto.request.CreateConnectionRequest
-import com.sleekydz86.kopanda.application.dto.request.CreateTopicRequest
-import com.sleekydz86.kopanda.application.dto.request.SendMessageRequest
-import com.sleekydz86.kopanda.application.dto.request.UpdateConnectionRequest
-import com.sleekydz86.kopanda.application.dto.response.ConnectionDto
-import com.sleekydz86.kopanda.application.dto.response.ConsumerGroupDto
-import com.sleekydz86.kopanda.application.dto.response.KafkaMetricsDto
-import com.sleekydz86.kopanda.application.dto.response.MessageDto
-import com.sleekydz86.kopanda.application.dto.response.PaginatedResponse
-import com.sleekydz86.kopanda.application.dto.response.TopicDetailDto
-import com.sleekydz86.kopanda.application.dto.response.TopicDto
-import com.sleekydz86.kopanda.application.ports.`in`.ActivityManagementUseCase
-import com.sleekydz86.kopanda.application.ports.`in`.ConnectionManagementUseCase
-import com.sleekydz86.kopanda.application.ports.`in`.KafkaManagementUseCase
+import com.sleekydz86.kopanda.application.dto.request.*
+import com.sleekydz86.kopanda.application.dto.response.*
+import com.sleekydz86.kopanda.application.ports.`in`.*
+import com.sleekydz86.kopanda.application.ports.out.ConnectionHistoryRepository
 import com.sleekydz86.kopanda.application.ports.out.ConnectionRepository
 import com.sleekydz86.kopanda.application.ports.out.KafkaRepository
-import com.sleekydz86.kopanda.domain.entities.Connection
-import com.sleekydz86.kopanda.domain.entities.Topic
-import com.sleekydz86.kopanda.domain.entities.Partition
-import com.sleekydz86.kopanda.domain.entities.Message
+import com.sleekydz86.kopanda.domain.entities.*
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
@@ -42,7 +24,8 @@ import org.slf4j.LoggerFactory
 class KafkaApplicationService(
     private val connectionRepository: ConnectionRepository,
     private val kafkaRepository: KafkaRepository,
-    private val activityManagementUseCase: ActivityManagementUseCase
+    private val activityManagementUseCase: ActivityManagementUseCase,
+    private val connectionHistoryRepository: ConnectionHistoryRepository
 ) : ConnectionManagementUseCase, KafkaManagementUseCase {
 
     private val logger = LoggerFactory.getLogger(KafkaApplicationService::class.java)
@@ -66,20 +49,21 @@ class KafkaApplicationService(
             username = request.username,
             password = request.password
         )
-
         val savedConnection = connectionRepository.save(connection)
-
-        activityManagementUseCase.logConnectionCreated(
-            connectionName = request.name,
-            connectionId = savedConnection.getId().value
+        activityManagementUseCase.logConnectionCreated(request.name, savedConnection.getId().value)
+        // 히스토리 저장
+        connectionHistoryRepository.save(
+            ConnectionHistory.fromEvent(
+                connectionId = savedConnection.getId(),
+                eventType = "CONNECTION_CREATED",
+                description = "Connection created: ${request.name}"
+            )
         )
-
         return savedConnection.toConnectionDto()
     }
 
     override suspend fun updateConnection(id: String, request: UpdateConnectionRequest): ConnectionDto {
         val connection = getConnectionOrThrow(id)
-
         connection.updateConnectionInfo(
             name = request.name,
             host = request.host,
@@ -89,8 +73,14 @@ class KafkaApplicationService(
             username = request.username,
             password = request.password
         )
-
         val updatedConnection = connectionRepository.save(connection)
+        connectionHistoryRepository.save(
+            ConnectionHistory.fromEvent(
+                connectionId = connection.getId(),
+                eventType = "CONNECTION_UPDATED",
+                description = "Connection updated: ${connection.name.value}"
+            )
+        )
         return updatedConnection.toConnectionDto()
     }
 
@@ -98,6 +88,13 @@ class KafkaApplicationService(
         val connection = getConnectionOrThrow(id)
         connection.delete()
         connectionRepository.delete(connection.getId())
+        connectionHistoryRepository.save(
+            ConnectionHistory.fromEvent(
+                connectionId = connection.getId(),
+                eventType = "CONNECTION_DELETED",
+                description = "Connection deleted: ${connection.name.value}"
+            )
+        )
     }
 
     override suspend fun testConnection(request: CreateConnectionRequest): ConnectionTestResult {
@@ -320,6 +317,151 @@ class KafkaApplicationService(
     override suspend fun getMetrics(connectionId: String): KafkaMetricsDto {
         val connection = getConnectionOrThrow(connectionId)
         return kafkaRepository.getMetrics(connection)
+    }
+
+    override suspend fun getDetailedMetrics(connectionId: String): DetailedMetricsDto {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.getDetailedMetrics(connection)
+    }
+
+    override suspend fun getTopicHealth(connectionId: String, topicName: String): TopicHealthDto {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.getTopicHealth(connection, TopicName(topicName))
+    }
+
+    override suspend fun getAllTopicsHealth(connectionId: String): List<TopicHealthDto> {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.getAllTopicsHealth(connection)
+    }
+
+    override suspend fun getConsumerGroupMetrics(connectionId: String, groupId: String): ConsumerGroupMetricsDto {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.getConsumerGroupMetrics(connection, groupId)
+    }
+
+    override suspend fun getAllConsumerGroupMetrics(connectionId: String): List<ConsumerGroupMetricsDto> {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.getAllConsumerGroupMetrics(connection)
+    }
+
+    override suspend fun getPerformanceMetrics(connectionId: String): PerformanceMetricsDto {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.getPerformanceMetrics(connection)
+    }
+
+    override suspend fun getPartitionDetails(connectionId: String, topicName: String, partitionNumber: Int): PartitionDetailDto {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.getPartitionDetails(connection, TopicName(topicName), partitionNumber)
+    }
+
+    override suspend fun getOffsetInfo(connectionId: String, topicName: String, partitionNumber: Int): OffsetInfoDto {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.getOffsetInfo(connection, TopicName(topicName), partitionNumber)
+    }
+
+    override suspend fun setOffset(connectionId: String, topicName: String, partitionNumber: Int, offset: Long): Boolean {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.setOffset(connection, TopicName(topicName), partitionNumber, offset)
+    }
+
+    override suspend fun getClusterInfo(connectionId: String): ClusterInfoDto {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.getClusterInfo(connection)
+    }
+
+    override suspend fun getConnectionHealth(id: String): ConnectionHealthDto {
+        val connection = getConnectionOrThrow(id)
+        val status = getConnectionStatus(id)
+
+        val healthScore = when (status.status) {
+            ConnectionStatusType.CONNECTED -> 100
+            ConnectionStatusType.CONNECTING -> 50
+            ConnectionStatusType.DISCONNECTED -> 25
+            ConnectionStatusType.ERROR -> 0
+        }
+
+        val issues = mutableListOf<ConnectionIssueDto>()
+        if (status.status == ConnectionStatusType.ERROR) {
+            issues.add(ConnectionIssueDto(
+                type = "CONNECTION_ERROR",
+                severity = "HIGH",
+                description = status.errorMessage ?: "Unknown error",
+                timestamp = LocalDateTime.now()
+            ))
+        }
+
+        return ConnectionHealthDto(
+            connectionId = id,
+            isHealthy = status.status == ConnectionStatusType.CONNECTED,
+            healthScore = healthScore,
+            lastCheckTime = status.lastChecked,
+            responseTime = status.latency ?: 0,
+            errorCount = if (status.status == ConnectionStatusType.ERROR) 1 else 0,
+            successRate = if (status.status == ConnectionStatusType.CONNECTED) 100.0 else 0.0,
+            issues = issues
+        )
+    }
+
+    override suspend fun getAllConnectionsHealth(): List<ConnectionHealthDto> {
+        val connections = connectionRepository.findAll()
+        return connections.map { connection ->
+            getConnectionHealth(connection.getId().value)
+        }
+    }
+
+    override suspend fun getConnectionMetrics(id: String): ConnectionMetricsDto {
+        val connection = getConnectionOrThrow(id)
+        val uptime = java.time.Duration.between(connection.createdAt, LocalDateTime.now())
+
+        return ConnectionMetricsDto(
+            connectionId = id,
+            uptime = uptime,
+            totalRequests = 0L,
+            successfulRequests = 0L,
+            failedRequests = 0L,
+            averageResponseTime = 0L,
+            maxResponseTime = 0L,
+            minResponseTime = 0L,
+            lastActivity = connection.lastConnected ?: connection.updatedAt
+        )
+    }
+
+    override suspend fun pingConnection(id: String): PingResultDto {
+        val connection = getConnectionOrThrow(id)
+
+        return try {
+            val startTime = System.currentTimeMillis()
+            val isAlive = kafkaRepository.testConnection(connection)
+            val responseTime = System.currentTimeMillis() - startTime
+
+            PingResultDto(
+                connectionId = id,
+                isAlive = isAlive,
+                responseTime = responseTime,
+                timestamp = LocalDateTime.now()
+            )
+        } catch (e: Exception) {
+            PingResultDto(
+                connectionId = id,
+                isAlive = false,
+                responseTime = 0,
+                timestamp = LocalDateTime.now(),
+                errorMessage = e.message
+            )
+        }
+    }
+
+    override suspend fun getConnectionHistory(id: String, limit: Int): List<ConnectionHistoryDto> {
+        return connectionHistoryRepository.findByConnectionId(id, limit)
+            .map {
+                ConnectionHistoryDto(
+                    connectionId = it.connectionId.value,
+                    eventType = it.eventType,
+                    description = it.description,
+                    timestamp = it.timestamp,
+                    details = it.details
+                )
+            }
     }
 
     private suspend fun getConnectionOrThrow(id: String): Connection {
