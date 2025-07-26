@@ -37,7 +37,7 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
-	// Kotlin Coroutines - 추가
+	// Kotlin Coroutines
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:1.7.3")
 
@@ -45,6 +45,17 @@ dependencies {
 	implementation("org.apache.kafka:kafka-clients:3.9.0")
 	implementation("io.confluent:kafka-avro-serializer:7.7.1")
 	implementation("com.google.protobuf:protobuf-java:4.28.3")
+
+	// JMX 메트릭 수집
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation("io.micrometer:micrometer-registry-prometheus")
+	implementation("io.micrometer:micrometer-registry-jmx")
+	implementation("org.springframework.boot:spring-boot-starter-aop")
+
+	// JMX 연결
+	implementation("com.sun.management:jmxremote:1.0")
+	implementation("javax.management:jmx:1.2.1")
+	implementation("javax.management.remote:jmxremote:1.0.1_04")
 
 	// Database
 	implementation("com.h2database:h2")
