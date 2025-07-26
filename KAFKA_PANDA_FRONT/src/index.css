@@ -1,38 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 body {
     font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
 }
 
-// vite.config.ts
-// Vite 설정 파일입니다. TypeScript를 사용하도록 변경되었습니다.
-import {
-    fileURLToPath,
-    URL
+#app {
+    height: 100vh;
+    width: 100vw;
 }
 
-from 'node:url';
-
-import {
-    defineConfig
+/* Element Plus 전역 스타일 오버라이드 */
+.el-menu {
+    border-right: none !important;
 }
 
-from 'vite';
-import vue from '@vitejs/plugin-vue';
+.el-menu-item {
+    border-bottom: 1px solid #435266 !important;
+}
 
-// https://vitejs.dev/config/
-export default defineConfig({
+.el-menu-item:hover {
+    background-color: #435266 !important;
+}
 
-    plugins: [ vue(),
-    ],
-    resolve: {
-        alias: {
-            '@': fileURLToPath(new URL('./src', import.meta.url))
-        }
-    }
-});
+.el-menu-item.is-active {
+    background-color: #409EFF !important;
+    color: #fff !important;
+}
+
+/* 스크롤바 스타일링 */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
