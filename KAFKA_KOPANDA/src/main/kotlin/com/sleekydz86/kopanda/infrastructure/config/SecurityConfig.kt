@@ -14,16 +14,23 @@ class SecurityConfig {
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { it.disable() }
-            .headers { headers ->
-                headers.frameOptions { it.disable() }
-            }
-            .authorizeHttpRequests { auth ->
-                auth.requestMatchers("/api/**").permitAll()
-                    .requestMatchers("/ws/**").permitAll()
-                    .requestMatchers("/actuator/**").permitAll()
+            .authorizeHttpRequests { authz ->
+                authz
+                    .requestMatchers(
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/api-docs/**",
+                        "/api-docs.yaml",
+                        "/v3/api-docs/**",
+                        "/webjars/**",
+                        "/swagger-resources/**"
+                    ).permitAll()
                     .requestMatchers("/h2-console/**").permitAll()
-                    .requestMatchers("/test/**").permitAll()
-                    .anyRequest().permitAll()
+                    .requestMatchers("/**").permitAll()
+                    .anyRequest().authenticated()
+            }
+            .headers { headers ->
+                headers.frameOptions().disable()
             }
 
         return http.build()
