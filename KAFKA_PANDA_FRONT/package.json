@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false"
+    "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
   },
   "dependencies": {
     "@antv/g2": "^5.3.5",
@@ -30,10 +32,17 @@
     "vue-router": "^4.2.5"
   },
   "devDependencies": {
+    "@types/lodash": "^4.14.202",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
     "@vitejs/plugin-vue": "^6.0.0",
+    "@vue/eslint-config-prettier": "^8.0.0",
+    "@vue/eslint-config-typescript": "^12.0.0",
     "@vue/tsconfig": "^0.5.1",
     "autoprefixer": "^10.4.16",
     "eslint": "^9.31.0",
+    "eslint-plugin-vue": "^9.17.0",
     "postcss": "^8.4.31",
     "prettier": "^3.6.2",
     "tailwindcss": "^3.3.5",
