@@ -2,7 +2,7 @@
   <div class="metrics-view">
     <div class="view-header">
       <h2>메트릭</h2>
-      <p>Kafka 클러스터의 성능 메트릭을 모니터링합니다</p>
+      <p>Kafka 클러스터 메트릭을 확인합니다</p>
     </div>
 
     <div v-if="!currentConnection" class="no-connection">

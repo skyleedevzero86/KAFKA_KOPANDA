@@ -2,7 +2,7 @@
   <div class="messages-view">
     <div class="view-header">
       <h2>메시지 관리</h2>
-      <p>Kafka 토픽의 메시지를 조회하고 전송합니다</p>
+      <p>Kafka 메시지를 관리합니다</p>
     </div>
 
     <div v-if="!currentConnection" class="no-connection">
@@ -14,21 +14,32 @@
     </div>
 
     <div v-else class="messages-content">
-      <MessageForm :connection-id="currentConnection.id" />
-      <MessageSearch :connection-id="currentConnection.id" />
-      <MessageList :connection-id="currentConnection.id" />
+      <div class="messages-tabs">
+        <el-tabs v-model="activeTab" type="card">
+          <el-tab-pane label="메시지 전송" name="send">
+            <MessageForm :connection-id="currentConnection.id" />
+          </el-tab-pane>
+          <el-tab-pane label="메시지 조회" name="list">
+            <MessageList :connection-id="currentConnection.id" />
+          </el-tab-pane>
+          <el-tab-pane label="메시지 검색" name="search">
+            <MessageSearch :connection-id="currentConnection.id" />
+          </el-tab-pane>
+        </el-tabs>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useConnectionStore } from '@/stores/connection'
 import MessageForm from '@/components/message/MessageForm.vue'
-import MessageSearch from '@/components/message/MessageSearch.vue'
 import MessageList from '@/components/message/MessageList.vue'
+import MessageSearch from '@/components/message/MessageSearch.vue'
 
 const connectionStore = useConnectionStore()
+const activeTab = ref('send')
 
 const currentConnection = computed(() => connectionStore.currentConnection)
 </script>
@@ -60,8 +71,12 @@ const currentConnection = computed(() => connectionStore.currentConnection)
 }
 
 .messages-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.messages-tabs {
+  padding: 20px;
 }
 </style>

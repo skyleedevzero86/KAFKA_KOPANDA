@@ -121,6 +121,19 @@ const rules = {
   ]
 }
 
+const resetForm = () => {
+  form.value = {
+    name: '',
+    host: 'localhost',
+    port: 9092,
+    sslEnabled: false,
+    saslEnabled: false,
+    username: '',
+    password: ''
+  }
+  formRef.value?.clearValidate()
+}
+
 watch(() => props.modelValue, (newValue) => {
   visible.value = newValue
 })
@@ -144,19 +157,6 @@ watch(() => props.connection, (connection) => {
     resetForm()
   }
 }, { immediate: true })
-
-const resetForm = () => {
-  form.value = {
-    name: '',
-    host: 'localhost',
-    port: 9092,
-    sslEnabled: false,
-    saslEnabled: false,
-    username: '',
-    password: ''
-  }
-  formRef.value?.clearValidate()
-}
 
 const handleSubmit = async () => {
   if (!formRef.value) return
@@ -196,7 +196,7 @@ const handleSubmit = async () => {
     visible.value = false
     resetForm()
   } catch (error) {
-    // 에러는 store에서 처리됨
+    // 에러는 store에서 처리예정
   } finally {
     loading.value = false
   }

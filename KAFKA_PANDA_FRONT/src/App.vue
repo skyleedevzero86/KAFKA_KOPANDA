@@ -2,7 +2,7 @@
   <div id="app">
     <el-container class="app-container">
       <el-aside width="250px" class="sidebar">
-        <div class="logo">
+        <div class="logo" @click="goToHome">
           <h2>🚀 Kafka Kopanda</h2>
         </div>
         <el-menu
@@ -56,12 +56,14 @@
     </el-container>
   </div>
 </template>
+
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Monitor, Connection, Document, ChatDotRound, TrendCharts, Refresh } from '@element-plus/icons-vue'
 
 const route = useRoute()
+const router = useRouter()
 
 const pageTitle = computed(() => {
   const titles: Record<string, string> = {
@@ -73,6 +75,10 @@ const pageTitle = computed(() => {
   }
   return titles[route.path] || 'Kafka Kopanda'
 })
+
+const goToHome = () => {
+  router.push('/')
+}
 
 const refreshData = () => {
   window.location.reload()
@@ -93,6 +99,12 @@ const refreshData = () => {
   padding: 20px;
   text-align: center;
   border-bottom: 1px solid #435266;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.logo:hover {
+  background-color: #435266;
 }
 
 .logo h2 {
