@@ -77,6 +77,11 @@ dependencies {
 	// Development
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+
+	// Swagger/OpenAPI 3
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.4.0")
+	implementation("io.swagger.core.v3:swagger-annotations:2.2.20")
+	implementation("io.swagger.core.v3:swagger-models:2.2.20")
 }
 
 kotlin {

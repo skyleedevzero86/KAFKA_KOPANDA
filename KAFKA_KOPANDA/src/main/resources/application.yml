@@ -64,6 +64,32 @@ spring:
   profiles:
     active: dev
 
+# Swagger/OpenAPI 설정
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    doc-expansion: none
+    disable-swagger-default-url: true
+    display-request-duration: true
+    filter: true
+    deep-linking: true
+    display-operation-id: false
+    default-models-expand-depth: 1
+    default-model-expand-depth: 1
+    default-model-render-depth: 3
+    show-common-extensions: true
+    show-extensions: true
+  packages-to-scan: com.sleekydz86.kopanda.infrastructure.adapters.in.rest
+  paths-to-match: /**
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
+  show-actuator: true
+  use-management-port: false
+
 logging:
   level:
     com.sleekydz86.kopanda: DEBUG
@@ -152,32 +178,3 @@ app:
     max-connections: 100
     connection-pool-size: 10
     default-host: localhost
-
-
-# 기존 설정에 추가
-kafka:
-  jmx:
-    enabled: true
-    port: 9999
-    host: localhost
-    username: null
-    password: null
-    ssl: false
-    ssl-truststore: null
-    ssl-truststore-password: null
-    ssl-keystore: null
-    ssl-keystore-password: null
-
-# Prometheus 메트릭 엔드포인트 추가
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: always
-    metrics:
-      enabled: true
-    prometheus:
-      enabled: true
