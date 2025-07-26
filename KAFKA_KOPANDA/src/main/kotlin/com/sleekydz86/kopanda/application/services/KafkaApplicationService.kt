@@ -51,14 +51,6 @@ class KafkaApplicationService(
         )
         val savedConnection = connectionRepository.save(connection)
         activityManagementUseCase.logConnectionCreated(request.name, savedConnection.getId().value)
-        // 히스토리 저장
-        connectionHistoryRepository.save(
-            ConnectionHistory.fromEvent(
-                connectionId = savedConnection.getId(),
-                eventType = "CONNECTION_CREATED",
-                description = "Connection created: ${request.name}"
-            )
-        )
         return savedConnection.toConnectionDto()
     }
 
@@ -74,13 +66,6 @@ class KafkaApplicationService(
             password = request.password
         )
         val updatedConnection = connectionRepository.save(connection)
-        connectionHistoryRepository.save(
-            ConnectionHistory.fromEvent(
-                connectionId = connection.getId(),
-                eventType = "CONNECTION_UPDATED",
-                description = "Connection updated: ${connection.name.value}"
-            )
-        )
         return updatedConnection.toConnectionDto()
     }
 
@@ -88,13 +73,6 @@ class KafkaApplicationService(
         val connection = getConnectionOrThrow(id)
         connection.delete()
         connectionRepository.delete(connection.getId())
-        connectionHistoryRepository.save(
-            ConnectionHistory.fromEvent(
-                connectionId = connection.getId(),
-                eventType = "CONNECTION_DELETED",
-                description = "Connection deleted: ${connection.name.value}"
-            )
-        )
     }
 
     override suspend fun testConnection(request: CreateConnectionRequest): ConnectionTestResult {
@@ -196,11 +174,15 @@ class KafkaApplicationService(
                     successCount++
                     logger.debug("✓ Connection '$connectionName' ($connectionId) is healthy and status updated")
                 } else {
+                    connection.markAsDisconnected()
+                    connectionRepository.save(connection)
                     failureCount++
                     logger.warn("✗ Connection '$connectionName' ($connectionId) is not responding")
                 }
 
             } catch (e: Exception) {
+                connection.markAsError(e.message)
+                connectionRepository.save(connection)
                 failureCount++
                 logger.error(
                     "✗ Failed to test connection '$connectionName' ($connectionId): ${e.message}",
