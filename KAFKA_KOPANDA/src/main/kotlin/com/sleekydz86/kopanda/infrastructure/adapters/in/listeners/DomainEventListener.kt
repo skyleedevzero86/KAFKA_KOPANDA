@@ -19,10 +19,15 @@ class DomainEventListener(
     suspend fun handleConnectionCreated(event: ConnectionCreatedEvent) {
         try {
             connectionHistoryRepository.save(
-                ConnectionHistory.fromEvent(
+                ConnectionHistory.create(
                     connectionId = event.connection.getId(),
                     eventType = "CONNECTION_CREATED",
-                    description = "Connection created: ${event.connection.name.value}"
+                    description = "Connection created: ${event.connection.name.value}",
+                    details = mapOf(
+                        "connectionName" to event.connection.name.value,
+                        "host" to event.connection.host.value,
+                        "port" to event.connection.port.value.toString()
+                    )
                 )
             )
             logger.info("Connection history saved for created connection: ${event.connection.name.value}")
@@ -35,10 +40,14 @@ class DomainEventListener(
     suspend fun handleConnectionUpdated(event: ConnectionUpdatedEvent) {
         try {
             connectionHistoryRepository.save(
-                ConnectionHistory.fromEvent(
+                ConnectionHistory.create(
                     connectionId = event.connection.getId(),
                     eventType = "CONNECTION_UPDATED",
-                    description = "Connection updated: ${event.connection.name.value}"
+                    description = "Connection updated: ${event.connection.name.value}",
+                    details = mapOf(
+                        "connectionName" to event.connection.name.value,
+                        "updatedAt" to event.connection.updatedAt.toString()
+                    )
                 )
             )
             logger.info("Connection history saved for updated connection: ${event.connection.name.value}")
@@ -51,10 +60,14 @@ class DomainEventListener(
     suspend fun handleConnectionDeleted(event: ConnectionDeletedEvent) {
         try {
             connectionHistoryRepository.save(
-                ConnectionHistory.fromEvent(
+                ConnectionHistory.create(
                     connectionId = event.connection.getId(),
                     eventType = "CONNECTION_DELETED",
-                    description = "Connection deleted: ${event.connection.name.value}"
+                    description = "Connection deleted: ${event.connection.name.value}",
+                    details = mapOf(
+                        "connectionName" to event.connection.name.value,
+                        "deletedAt" to java.time.LocalDateTime.now().toString()
+                    )
                 )
             )
             logger.info("Connection history saved for deleted connection: ${event.connection.name.value}")
@@ -74,14 +87,15 @@ class DomainEventListener(
             }
 
             connectionHistoryRepository.save(
-                ConnectionHistory.fromEvent(
+                ConnectionHistory.create(
                     connectionId = event.connection.getId(),
                     eventType = "CONNECTION_STATUS_CHANGED",
                     description = "Status changed to ${event.newStatus}: ${event.connection.name.value} - $statusDescription",
                     details = mapOf(
                         "previousStatus" to event.previousStatus.name,
                         "newStatus" to event.newStatus.name,
-                        "errorMessage" to (event.errorMessage ?: "")
+                        "errorMessage" to (event.errorMessage ?: ""),
+                        "connectionName" to event.connection.name.value
                     )
                 )
             )

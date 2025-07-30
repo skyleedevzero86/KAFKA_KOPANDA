@@ -50,7 +50,22 @@ class KafkaApplicationService(
             password = request.password
         )
         val savedConnection = connectionRepository.save(connection)
+
         activityManagementUseCase.logConnectionCreated(request.name, savedConnection.getId().value)
+
+        val history = ConnectionHistory.create(
+            connectionId = savedConnection.getId(),
+            eventType = "CONNECTION_CREATED",
+            description = "연결이 생성되었습니다: ${request.name}",
+            details = mapOf(
+                "host" to request.host,
+                "port" to request.port.toString(),
+                "sslEnabled" to request.sslEnabled.toString(),
+                "saslEnabled" to request.saslEnabled.toString()
+            )
+        )
+        connectionHistoryRepository.save(history)
+
         return savedConnection.toConnectionDto()
     }
 
@@ -66,6 +81,24 @@ class KafkaApplicationService(
             password = request.password
         )
         val updatedConnection = connectionRepository.save(connection)
+
+        // ConnectionHistory 저장
+        val history = ConnectionHistory.create(
+            connectionId = connection.getId(),
+            eventType = "CONNECTION_UPDATED",
+            description = "연결이 업데이트되었습니다: ${connection.name.value}",
+            details = mapOf(
+                "updatedFields" to listOfNotNull(
+                    request.name?.let { "name" },
+                    request.host?.let { "host" },
+                    request.port?.let { "port" },
+                    request.sslEnabled?.let { "sslEnabled" },
+                    request.saslEnabled?.let { "saslEnabled" }
+                )
+            )
+        )
+        connectionHistoryRepository.save(history)
+
         return updatedConnection.toConnectionDto()
     }
 
@@ -73,6 +106,16 @@ class KafkaApplicationService(
         val connection = getConnectionOrThrow(id)
         connection.delete()
         connectionRepository.delete(connection.getId())
+
+        val history = ConnectionHistory.create(
+            connectionId = connection.getId(),
+            eventType = "CONNECTION_DELETED",
+            description = "연결이 삭제되었습니다: ${connection.name.value}",
+            details = mapOf(
+                "deletedAt" to LocalDateTime.now().toString()
+            )
+        )
+        connectionHistoryRepository.save(history)
     }
 
     override suspend fun testConnection(request: CreateConnectionRequest): ConnectionTestResult {
@@ -129,6 +172,18 @@ class KafkaApplicationService(
             val topicList = adminClient.listTopics().names().get()
             adminClient.close()
 
+            val history = ConnectionHistory.create(
+                connectionId = connection.getId(),
+                eventType = "CONNECTION_STATUS_CHECK",
+                description = "연결 상태 확인 성공",
+                details = mapOf(
+                    "status" to "CONNECTED",
+                    "brokerCount" to clusterDescription.size.toString(),
+                    "topicCount" to topicList.size.toString()
+                )
+            )
+            connectionHistoryRepository.save(history)
+
             ConnectionStatus(
                 connectionId = id,
                 status = if (isConnected) ConnectionStatusType.CONNECTED else ConnectionStatusType.DISCONNECTED,
@@ -137,6 +192,18 @@ class KafkaApplicationService(
                 topicCount = topicList.size
             )
         } catch (e: Exception) {
+
+            val history = ConnectionHistory.create(
+                connectionId = connection.getId(),
+                eventType = "CONNECTION_STATUS_CHECK_FAILED",
+                description = "연결 상태 확인 실패: ${e.message}",
+                details = mapOf(
+                    "status" to "ERROR",
+                    "error" to (e.message ?: "Unknown error")
+                )
+            )
+            connectionHistoryRepository.save(history)
+
             activityManagementUseCase.logConnectionOffline(
                 connectionName = connection.name.value,
                 connectionId = connection.getId().value
