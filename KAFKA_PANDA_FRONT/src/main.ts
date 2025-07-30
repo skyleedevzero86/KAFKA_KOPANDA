@@ -9,18 +9,18 @@ import './index.css'
 
 const app = createApp(App)
 
+// Pinia 스토어 등록
+app.use(createPinia())
+
+// Element Plus 등록
+app.use(ElementPlus)
+
 // Element Plus 아이콘 등록
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
 
-app.use(createPinia())
+// 라우터 등록
 app.use(router)
-app.use(ElementPlus)
-
-// 전역 에러 핸들러
-app.config.errorHandler = (err, vm, info) => {
-  console.error('Vue 에러:', err, info)
-}
 
 app.mount('#app')
