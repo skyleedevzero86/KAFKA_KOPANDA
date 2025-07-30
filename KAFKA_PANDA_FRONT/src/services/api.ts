@@ -1,12 +1,12 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
 
-class ApiService {
+export class ApiService {
   private api: AxiosInstance
 
   constructor() {
     this.api = axios.create({
-      baseURL: '/api',
+      baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json'
@@ -17,22 +17,30 @@ class ApiService {
   }
 
   private setupInterceptors() {
+    // 요청 인터셉터
     this.api.interceptors.request.use(
       (config) => {
+        console.log('API 요청:', config.method?.toUpperCase(), config.url)
         return config
       },
       (error) => {
+        console.error('API 요청 오류:', error)
         return Promise.reject(error)
       }
     )
 
+    // 응답 인터셉터
     this.api.interceptors.response.use(
       (response: AxiosResponse) => {
+        console.log('API 응답:', response.status, response.config.url)
         return response
       },
       (error) => {
-        const message = error.response?.data?.message || error.message || '알 수 없는 오류가 발생했습니다.'
+        console.error('API 응답 오류:', error.response?.status, error.response?.data)
+        
+        const message = error.response?.data?.message || error.message || '서버 오류가 발생했습니다.'
         ElMessage.error(message)
+        
         return Promise.reject(error)
       }
     )

@@ -1,139 +1,116 @@
 <template>
-  <div class="dashboard">
-    <div class="dashboard-header">
+  <div class="dashboard-page">
+    <div class="page-header">
       <h2>대시보드</h2>
-      <p>Kafka 클러스터 상태 및 메트릭을 한눈에 확인하세요</p>
+      <p>Kafka 클러스터 현황을 한눈에 확인합니다.</p>
     </div>
 
-    <el-row :gutter="20">
-      <el-col :span="8">
-        <el-card class="overview-card">
-          <template #header>
-            <div class="card-header">
-              <span>연결 상태</span>
-              <el-icon><Connection /></el-icon>
-            </div>
-          </template>
-          <div class="overview-content">
-            <div class="overview-item">
-              <span class="label">총 연결:</span>
-              <span class="value">{{ connections.length }}</span>
-            </div>
-            <div class="overview-item">
-              <span class="label">연결됨:</span>
-              <span class="value success">{{ connectedConnections.length }}</span>
-            </div>
-            <div class="overview-item">
-              <span class="label">연결 안됨:</span>
-              <span class="value danger">{{ disconnectedConnections.length }}</span>
-            </div>
+    <div class="dashboard-grid">
+      <!-- 연결 상태 카드 -->
+      <el-card class="status-card">
+        <template #header>
+          <div class="card-header">
+            <el-icon><Connection /></el-icon>
+            <span>연결 상태</span>
           </div>
-        </el-card>
-      </el-col>
-
-      <el-col :span="8">
-        <el-card class="overview-card">
-          <template #header>
-            <div class="card-header">
-              <span>토픽 상태</span>
-              <el-icon><Document /></el-icon>
-            </div>
-          </template>
-          <div class="overview-content">
-            <div class="overview-item">
-              <span class="label">총 토픽:</span>
-              <span class="value">{{ totalTopics }}</span>
-            </div>
-            <div class="overview-item">
-              <span class="label">정상:</span>
-              <span class="value success">{{ healthyTopics }}</span>
-            </div>
-            <div class="overview-item">
-              <span class="label">오류:</span>
-              <span class="value danger">{{ unhealthyTopics }}</span>
-            </div>
+        </template>
+        <div class="status-content">
+          <div class="status-item">
+            <span class="label">활성 연결:</span>
+            <span class="value">{{ connectionStore.connections.length }}</span>
           </div>
-        </el-card>
-      </el-col>
-
-      <el-col :span="8">
-        <el-card class="overview-card">
-          <template #header>
-            <div class="card-header">
-              <span>시스템 상태</span>
-              <el-icon><Monitor /></el-icon>
-            </div>
-          </template>
-          <div class="overview-content">
-            <div class="overview-item">
-              <span class="label">메모리 사용량:</span>
-              <span class="value">{{ memoryUsage }}%</span>
-            </div>
-            <div class="overview-item">
-              <span class="label">CPU 사용량:</span>
-              <span class="value">{{ cpuUsage }}%</span>
-            </div>
-            <div class="overview-item">
-              <span class="label">디스크 사용량:</span>
-              <span class="value">{{ diskUsage }}%</span>
-            </div>
+          <div class="status-item">
+            <span class="label">연결된 클러스터:</span>
+            <span class="value">{{ connectedClusters }}</span>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
+        </div>
+      </el-card>
 
-    <el-row :gutter="20" style="margin-top: 20px;">
-      <el-col :span="12">
-        <el-card>
-          <template #header>
-            <span>연결 상태 분포</span>
-          </template>
-          <div class="chart-container">
-            <PieChart
-                :data="connectionChartData"
-                :options="pieChartOptions"
-            />
+      <!-- 토픽 현황 카드 -->
+      <el-card class="status-card">
+        <template #header>
+          <div class="card-header">
+            <el-icon><Document /></el-icon>
+            <span>토픽 현황</span>
           </div>
-        </el-card>
-      </el-col>
-
-      <el-col :span="12">
-        <el-card>
-          <template #header>
-            <span>토픽 상태 분포</span>
-          </template>
-          <div class="chart-container">
-            <PieChart
-                :data="topicChartData"
-                :options="pieChartOptions"
-            />
+        </template>
+        <div class="status-content">
+          <div class="status-item">
+            <span class="label">총 토픽:</span>
+            <span class="value">{{ totalTopics }}</span>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
+          <div class="status-item">
+            <span class="label">내부 토픽:</span>
+            <span class="value">{{ internalTopics }}</span>
+          </div>
+        </div>
+      </el-card>
 
-    <el-row :gutter="20" style="margin-top: 20px;">
-      <el-col :span="24">
-        <el-card>
-          <template #header>
-            <span>최근 활동</span>
-          </template>
-          <div class="recent-activity">
-            <div v-for="activity in recentActivities" :key="activity.id" class="activity-item">
-              <div class="activity-icon">
-                <el-icon :color="activity.color">
-                  <component :is="activity.icon" />
-                </el-icon>
+      <!-- 메트릭스 카드 -->
+      <el-card class="status-card">
+        <template #header>
+          <div class="card-header">
+            <el-icon><Monitor /></el-icon>
+            <span>시스템 메트릭스</span>
+          </div>
+        </template>
+        <div class="status-content">
+          <div class="status-item">
+            <span class="label">브로커 수:</span>
+            <span class="value">{{ brokerCount }}</span>
+          </div>
+          <div class="status-item">
+            <span class="label">총 파티션:</span>
+            <span class="value">{{ totalPartitions }}</span>
+          </div>
+        </div>
+      </el-card>
+    </div>
+
+    <!-- 차트 영역 -->
+    <div class="charts-section">
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-card>
+            <template #header>
+              <div class="card-header">
+                <el-icon><PieChartIcon /></el-icon>
+                <span>토픽 분포</span>
               </div>
-              <div class="activity-content">
-                <div class="activity-title">{{ activity.title }}</div>
-                <div class="activity-time">{{ formatDate(activity.time) }}</div>
+            </template>
+            <PieChartComponent 
+              :data="topicDistributionData"
+              :options="pieChartOptions"
+            />
+          </el-card>
+        </el-col>
+        <el-col :span="12">
+          <el-card>
+            <template #header>
+              <div class="card-header">
+                <el-icon><TrendCharts /></el-icon>
+                <span>연결 상태</span>
+              </div>
+            </template>
+            <div class="connection-status-list">
+              <div 
+                v-for="connection in connectionStore.connections" 
+                :key="connection.id"
+                class="connection-status-item"
+              >
+                <span class="connection-name">{{ connection.name }}</span>
+                <el-tag 
+                  :type="getConnectionStatusType(connection)"
+                  size="small"
+                >
+                  {{ getConnectionStatusText(connection) }}
+                </el-tag>
               </div>
             </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+          </el-card>
+        </el-col>
+      </el-row>
+    </div>
   </div>
 </template>
 
@@ -141,38 +118,36 @@
 import { computed, ref, onMounted, onActivated } from 'vue'
 import { useConnectionStore } from '@/stores/connection'
 import { useTopicStore } from '@/stores/topic'
-import { Connection, Document, Monitor } from '@element-plus/icons-vue'
-import PieChart from '@/components/charts/PieChart.vue'
+import { Connection, Document, Monitor, PieChart as PieChartIcon, TrendCharts } from '@element-plus/icons-vue'
+import PieChartComponent from '@/components/charts/PieChart.vue'
 import { formatDate } from '@/utils/formatters'
 
 const connectionStore = useConnectionStore()
 const topicStore = useTopicStore()
 
-const { connections, connectedConnections, disconnectedConnections } = connectionStore
-const { topics } = topicStore
+// 계산된 속성들
+const connectedClusters = computed(() => 
+  connectionStore.connections.filter(c => c.lastConnected).length
+)
 
-// 시스템 메트릭 (실제로는 API에서 가져와야 함)
-const memoryUsage = ref(65)
-const cpuUsage = ref(45)
-const diskUsage = ref(78)
+const totalTopics = computed(() => topicStore.topics.length)
+const internalTopics = computed(() => 
+  topicStore.topics.filter(t => t.isInternal).length
+)
 
-const totalTopics = computed(() => topics.length)
-const healthyTopics = computed(() => topics.filter(t => t.isHealthy).length)
-const unhealthyTopics = computed(() => topics.filter(t => !t.isHealthy).length)
+const brokerCount = computed(() => 3) // 실제로는 메트릭스에서 가져와야 함
+const totalPartitions = computed(() => 
+  topicStore.topics.reduce((sum, topic) => sum + topic.partitionCount, 0)
+)
 
-const connectionChartData = computed(() => ({
-  labels: ['연결됨', '연결 안됨'],
+// 차트 데이터
+const topicDistributionData = computed(() => ({
+  labels: ['사용자 토픽', '내부 토픽'],
   datasets: [{
-    data: [connectedConnections.length, disconnectedConnections.length],
-    backgroundColor: ['#67C23A', '#F56C6C']
-  }]
-}))
-
-const topicChartData = computed(() => ({
-  labels: ['정상', '오류'],
-  datasets: [{
-    data: [healthyTopics.value, unhealthyTopics.value],
-    backgroundColor: ['#67C23A', '#F56C6C']
+    data: [totalTopics.value - internalTopics.value, internalTopics.value],
+    backgroundColor: ['#409EFF', '#909399'],
+    borderColor: ['#409EFF', '#909399'],
+    borderWidth: 1
   }]
 }))
 
@@ -186,144 +161,110 @@ const pieChartOptions = {
   }
 }
 
-const recentActivities = ref([
-  {
-    id: 1,
-    title: '새 연결이 생성되었습니다: Local Kafka',
-    time: new Date(Date.now() - 1000 * 60 * 5),
-    icon: 'Connection',
-    color: '#409EFF'
-  },
-  {
-    id: 2,
-    title: '토픽 "test-topic"이 생성되었습니다',
-    time: new Date(Date.now() - 1000 * 60 * 15),
-    icon: 'Document',
-    color: '#67C23A'
-  },
-  {
-    id: 3,
-    title: '연결 "Production Kafka"가 오프라인 상태가 되었습니다',
-    time: new Date(Date.now() - 1000 * 60 * 30),
-    icon: 'Warning',
-    color: '#E6A23C'
-  }
-])
-
-const loadData = () => {
-  console.log('Dashboard 데이터 로드')
-  connectionStore.fetchConnections()
-  topicStore.fetchTopics('')
+// 연결 상태 관련 함수들
+const getConnectionStatusType = (connection: any) => {
+  if (connection.lastConnected) return 'success'
+  return 'danger'
 }
 
-onMounted(() => {
+const getConnectionStatusText = (connection: any) => {
+  if (connection.lastConnected) return '연결됨'
+  return '연결 안됨'
+}
+
+onMounted(async () => {
   console.log('Dashboard 컴포넌트 마운트됨')
-  loadData()
+  await connectionStore.fetchConnections()
+  if (connectionStore.currentConnection) {
+    await topicStore.fetchTopics(connectionStore.currentConnection.id)
+  }
 })
 
-onActivated(() => {
+onActivated(async () => {
   console.log('Dashboard 컴포넌트 활성화됨')
-  loadData()
+  await connectionStore.fetchConnections()
 })
 </script>
 
 <style scoped>
-.dashboard {
-  padding: 20px;
+.dashboard-page {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.dashboard-header {
-  margin-bottom: 30px;
-  text-align: center;
+.page-header {
+  margin-bottom: 24px;
 }
 
-.dashboard-header h2 {
-  margin: 0 0 10px 0;
+.page-header h2 {
+  margin: 0 0 8px 0;
   color: #303133;
 }
 
-.dashboard-header p {
+.page-header p {
   margin: 0;
   color: #606266;
 }
 
-.overview-card {
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.status-card {
   height: 200px;
 }
 
 .card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
 }
 
-.overview-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.status-content {
+  padding: 16px 0;
 }
 
-.overview-item {
+.status-item {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  margin-bottom: 12px;
 }
 
-.overview-item .label {
+.status-item .label {
   color: #606266;
 }
 
-.overview-item .value {
+.status-item .value {
   font-weight: bold;
-  font-size: 1.2rem;
+  color: #303133;
 }
 
-.overview-item .value.success {
-  color: #67C23A;
+.charts-section {
+  margin-top: 24px;
 }
 
-.overview-item .value.danger {
-  color: #F56C6C;
-}
-
-.chart-container {
-  height: 300px;
-  position: relative;
-}
-
-.recent-activity {
+.connection-status-list {
   max-height: 300px;
   overflow-y: auto;
 }
 
-.activity-item {
+.connection-status-item {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
+  padding: 8px 0;
   border-bottom: 1px solid #f0f0f0;
 }
 
-.activity-item:last-child {
+.connection-status-item:last-child {
   border-bottom: none;
 }
 
-.activity-icon {
-  margin-right: 12px;
-  font-size: 1.2rem;
-}
-
-.activity-content {
-  flex: 1;
-}
-
-.activity-title {
+.connection-name {
   font-weight: 500;
   color: #303133;
-  margin-bottom: 4px;
-}
-
-.activity-time {
-  font-size: 12px;
-  color: #909399;
 }
 </style>
