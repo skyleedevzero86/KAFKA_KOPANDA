@@ -1,51 +1,26 @@
 <template>
-  <el-card class="topic-card" :class="{ internal: topic.isInternal }" @click="handleClick">
+  <el-card class="topic-card" @click="handleClick">
     <template #header>
       <div class="card-header">
         <span class="topic-name">{{ topic.name }}</span>
         <div class="topic-badges">
-          <el-tag v-if="topic.isInternal" type="info" size="small">내부</el-tag>
-          <el-tag
-            :type="topic.isHealthy ? 'success' : 'danger'"
-            size="small"
-          >
-            {{ topic.isHealthy ? '정상' : '비정상' }}
-          </el-tag>
+          <el-tag v-if="topic.isInternal" size="small" type="warning">시스템</el-tag>
+          <el-tag v-if="topic.isHealthy" size="small" type="success">정상</el-tag>
+          <el-tag v-else size="small" type="danger">오류</el-tag>
         </div>
       </div>
     </template>
 
     <div class="card-content">
       <div class="topic-info">
-        <div class="info-row">
-          <span class="info-label">파티션:</span>
-          <span class="info-value">{{ topic.partitionCount }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">복제 팩터:</span>
-          <span class="info-value">{{ topic.replicationFactor }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">메시지 수:</span>
-          <span class="info-value">{{ formatNumber(topic.messageCount) }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">생성일:</span>
-          <span class="info-value">{{ formatDate(topic.createdAt) }}</span>
-        </div>
+        <p><strong>파티션:</strong> {{ topic.partitionCount }}</p>
+        <p><strong>복제 팩터:</strong> {{ topic.replicationFactor }}</p>
+        <p><strong>메시지 수:</strong> {{ formatNumber(topic.messageCount) }}</p>
+        <p><strong>생성일:</strong> {{ formatDate(topic.createdAt) }}</p>
       </div>
 
       <div class="card-actions">
-        <el-button size="small" @click.stop="handleDetail">
-          <el-icon><View /></el-icon>
-          상세보기
-        </el-button>
-        <el-button
-          v-if="!topic.isInternal"
-          size="small"
-          type="danger"
-          @click.stop="handleDelete"
-        >
+        <el-button size="small" @click.stop="handleDelete">
           <el-icon><Delete /></el-icon>
           삭제
         </el-button>
@@ -55,9 +30,9 @@
 </template>
 
 <script setup lang="ts">
-import { View, Delete } from '@element-plus/icons-vue'
-import { formatNumber, formatDate } from '@/utils/formatters'
+import { Delete } from '@element-plus/icons-vue'
 import type { TopicDto } from '@/types/topic'
+import { formatDate, formatNumber } from '@/utils/formatters'
 
 interface Props {
   topic: TopicDto
@@ -66,17 +41,12 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  detail: [topic: TopicDto]
-  delete: [topicName: string]
   select: [topic: TopicDto]
+  delete: [topicName: string]
 }>()
 
 const handleClick = () => {
   emit('select', props.topic)
-}
-
-const handleDetail = () => {
-  emit('detail', props.topic)
 }
 
 const handleDelete = () => {
@@ -96,10 +66,6 @@ const handleDelete = () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.topic-card.internal {
-  opacity: 0.8;
-}
-
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -109,12 +75,15 @@ const handleDelete = () => {
 .topic-name {
   font-weight: bold;
   color: #303133;
-  font-family: 'Courier New', monospace;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topic-badges {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 .card-content {
@@ -123,31 +92,14 @@ const handleDelete = () => {
   gap: 12px;
 }
 
-.topic-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.info-label {
-  color: #909399;
+.topic-info p {
+  margin: 4px 0;
   font-size: 14px;
-}
-
-.info-value {
-  color: #303133;
-  font-weight: 500;
+  color: #606266;
 }
 
 .card-actions {
   display: flex;
-  gap: 8px;
   justify-content: flex-end;
 }
 </style>

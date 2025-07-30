@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     :title="isEdit ? '연결 수정' : '새 연결 생성'"
-    width="600px"
+    width="500px"
     :before-close="handleClose"
   >
     <el-form
@@ -21,19 +21,14 @@
       </el-form-item>
 
       <el-form-item label="포트" prop="port">
-        <el-input-number
-          v-model="form.port"
-          :min="1"
-          :max="65535"
-          placeholder="9092"
-        />
+        <el-input-number v-model="form.port" :min="1" :max="65535" />
       </el-form-item>
 
       <el-form-item label="SSL">
         <el-switch v-model="form.sslEnabled" />
       </el-form-item>
 
-      <el-form-item label="SASL 인증">
+      <el-form-item label="SASL">
         <el-switch v-model="form.saslEnabled" />
       </el-form-item>
 
@@ -55,7 +50,7 @@
 
     <template #footer>
       <span class="dialog-footer">
-        <el-button @click="handleCancel">취소</el-button>
+        <el-button @click="handleClose">취소</el-button>
         <el-button type="primary" @click="handleSubmit" :loading="loading">
           {{ isEdit ? '수정' : '생성' }}
         </el-button>
@@ -66,17 +61,19 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { ElMessage } from 'element-plus'
 import { useConnectionStore } from '@/stores/connection'
-import { validateConnectionConfig } from '@/utils/validators'
+import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import type { ConnectionDto, CreateConnectionRequest, UpdateConnectionRequest } from '@/types/connection'
 
 interface Props {
   modelValue: boolean
-  connection?: ConnectionDto
+  connection?: ConnectionDto | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  connection: null
+})
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -85,9 +82,13 @@ const emit = defineEmits<{
 }>()
 
 const connectionStore = useConnectionStore()
-const formRef = ref()
-const visible = ref(props.modelValue)
+const formRef = ref<FormInstance>()
 const loading = ref(false)
+
+const visible = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
+})
 
 const isEdit = computed(() => !!props.connection)
 
@@ -101,46 +102,25 @@ const form = ref<CreateConnectionRequest>({
   password: ''
 })
 
-const rules = {
+const rules: FormRules = {
   name: [
-    { required: true, message: '연결 이름을 입력해주세요', trigger: 'blur' },
-    { min: 1, max: 50, message: '연결 이름은 1-50자 사이여야 합니다', trigger: 'blur' }
+    { required: true, message: '연결 이름을 입력하세요', trigger: 'blur' },
+    { min: 1, max: 100, message: '연결 이름은 1-100자 사이여야 합니다', trigger: 'blur' }
   ],
   host: [
-    { required: true, message: '호스트를 입력해주세요', trigger: 'blur' }
+    { required: true, message: '호스트를 입력하세요', trigger: 'blur' }
   ],
   port: [
-    { required: true, message: '포트를 입력해주세요', trigger: 'blur' },
+    { required: true, message: '포트를 입력하세요', trigger: 'blur' },
     { type: 'number', min: 1, max: 65535, message: '포트는 1-65535 사이여야 합니다', trigger: 'blur' }
   ],
   username: [
-    { required: true, message: '사용자명을 입력해주세요', trigger: 'blur' }
+    { required: true, message: '사용자명을 입력하세요', trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '비밀번호를 입력해주세요', trigger: 'blur' }
+    { required: true, message: '비밀번호를 입력하세요', trigger: 'blur' }
   ]
 }
-
-const resetForm = () => {
-  form.value = {
-    name: '',
-    host: 'localhost',
-    port: 9092,
-    sslEnabled: false,
-    saslEnabled: false,
-    username: '',
-    password: ''
-  }
-  formRef.value?.clearValidate()
-}
-
-watch(() => props.modelValue, (newValue) => {
-  visible.value = newValue
-})
-
-watch(visible, (newValue) => {
-  emit('update:modelValue', newValue)
-})
 
 watch(() => props.connection, (connection) => {
   if (connection) {
@@ -158,20 +138,27 @@ watch(() => props.connection, (connection) => {
   }
 }, { immediate: true })
 
+const resetForm = () => {
+  form.value = {
+    name: '',
+    host: 'localhost',
+    port: 9092,
+    sslEnabled: false,
+    saslEnabled: false,
+    username: '',
+    password: ''
+  }
+  formRef.value?.clearValidate()
+}
+
 const handleSubmit = async () => {
   if (!formRef.value) return
 
+  const valid = await formRef.value.validate()
+  if (!valid) return
+
+  loading.value = true
   try {
-    await formRef.value.validate()
-    
-    const validation = validateConnectionConfig(form.value)
-    if (!validation.isValid) {
-      ElMessage.error(validation.errors[0])
-      return
-    }
-
-    loading.value = true
-
     if (isEdit.value && props.connection) {
       const updateRequest: UpdateConnectionRequest = {
         name: form.value.name,
@@ -179,32 +166,21 @@ const handleSubmit = async () => {
         port: form.value.port,
         sslEnabled: form.value.sslEnabled,
         saslEnabled: form.value.saslEnabled,
-        username: form.value.username,
-        password: form.value.password
+        username: form.value.username || undefined,
+        password: form.value.password || undefined
       }
-      
-      const updatedConnection = await connectionStore.updateConnection(
-        props.connection.id,
-        updateRequest
-      )
+      const updatedConnection = await connectionStore.updateConnection(props.connection.id, updateRequest)
       emit('updated', updatedConnection)
     } else {
       const newConnection = await connectionStore.createConnection(form.value)
       emit('created', newConnection)
     }
-
     visible.value = false
-    resetForm()
   } catch (error) {
-    // 에러는 store에서 처리예정
+    // 에러는 store에서 처리됨
   } finally {
     loading.value = false
   }
-}
-
-const handleCancel = () => {
-  visible.value = false
-  resetForm()
 }
 
 const handleClose = () => {

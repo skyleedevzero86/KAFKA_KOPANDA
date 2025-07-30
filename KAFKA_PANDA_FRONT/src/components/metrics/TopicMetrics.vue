@@ -1,46 +1,54 @@
 <template>
-  <el-card class="topic-metrics">
-    <template #header>
-      <div class="card-header">
+  <div class="topic-metrics">
+    <el-card>
+      <template #header>
         <span>토픽 메트릭</span>
-      </div>
-    </template>
-    
-    <div v-if="!metrics" class="no-data">
-      <el-empty description="메트릭 데이터가 없습니다" />
-    </div>
-    
-    <div v-else class="metrics-content">
-      <el-row :gutter="20">
-        <el-col :span="8">
-          <div class="metric-item">
-            <div class="metric-value">{{ metrics.topicCount }}</div>
-            <div class="metric-label">토픽 수</div>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="metric-item">
-            <div class="metric-value">{{ metrics.totalPartitions }}</div>
-            <div class="metric-label">총 파티션</div>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="metric-item">
-            <div class="metric-value">{{ formatNumber(metrics.messagesPerSecond) }}</div>
-            <div class="metric-label">초당 메시지</div>
-          </div>
-        </el-col>
-      </el-row>
-    </div>
-  </el-card>
+      </template>
+
+      <el-table :data="topics" style="width: 100%">
+        <el-table-column prop="name" label="토픽명" />
+        <el-table-column prop="partitionCount" label="파티션" width="100" />
+        <el-table-column prop="messageCount" label="메시지 수" width="120">
+          <template #default="{ row }">
+            {{ formatNumber(row.messageCount) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="isHealthy" label="상태" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.isHealthy ? 'success' : 'danger'">
+              {{ row.isHealthy ? '정상' : '오류' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="차트" width="200">
+          <template #default="{ row }">
+            <div class="mini-chart">
+              <BarChart
+                  :data="{
+                  labels: ['파티션'],
+                  datasets: [{
+                    label: '메시지',
+                    data: [row.messageCount],
+                    backgroundColor: ['#409EFF']
+                  }]
+                }"
+                  :options="{ responsive: true, maintainAspectRatio: false }"
+              />
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+  </div>
 </template>
 
 <script setup lang="ts">
+import type { TopicDto } from '@/types/topic'
 import { formatNumber } from '@/utils/formatters'
-import type { KafkaMetricsDto } from '@/types/metrics'
+import BarChart from '@/components/charts/BarChart.vue'
 
 interface Props {
-  metrics: KafkaMetricsDto | null
+  topics: TopicDto[]
 }
 
 defineProps<Props>()
@@ -48,41 +56,10 @@ defineProps<Props>()
 
 <style scoped>
 .topic-metrics {
-  height: 100%;
+  margin-bottom: 20px;
 }
 
-.card-header {
-  font-weight: bold;
-  color: #303133;
-}
-
-.no-data {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 200px;
-}
-
-.metrics-content {
-  padding: 20px 0;
-}
-
-.metric-item {
-  text-align: center;
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.metric-value {
-  font-size: 24px;
-  font-weight: bold;
-  color: #409EFF;
-  margin-bottom: 8px;
-}
-
-.metric-label {
-  font-size: 14px;
-  color: #909399;
+.mini-chart {
+  height: 50px;
 }
 </style>

@@ -1,69 +1,37 @@
 import dayjs from 'dayjs'
 
 export function formatDate(date: string | Date): string {
-  if (!date) return '-'
-  return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
-}
-
-export function formatRelativeTime(date: string | Date): string {
-  if (!date) return '-'
-  return dayjs(date).fromNow()
-}
-
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
-  
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
 }
 
 export function formatNumber(num: number): string {
-  return num.toLocaleString()
-}
-
-export function formatMessageKey(key: string | null | undefined): string {
-  if (!key) return '-'
-  if (key.length > 50) {
-    return key.substring(0, 50) + '...'
-  }
-  return key
-}
-
-export function formatMessageValue(value: string): string {
-  if (!value) return '-'
-  
-  try {
-    const parsed = JSON.parse(value)
-    return JSON.stringify(parsed, null, 2)
-  } catch {
-    if (value.length > 200) {
-      return value.substring(0, 200) + '...'
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M'
     }
-    return value
-  }
+    if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K'
+    }
+    return num.toString()
 }
 
-export function formatOffset(offset: number): string {
-  return offset.toLocaleString()
+export function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B'
+
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-export function formatPartition(partition: number): string {
-  return `Partition ${partition}`
+export function formatDuration(ms: number): string {
+    if (ms < 1000) return ms + 'ms'
+    if (ms < 60000) return (ms / 1000).toFixed(1) + 's'
+    if (ms < 3600000) return (ms / 60000).toFixed(1) + 'm'
+    return (ms / 3600000).toFixed(1) + 'h'
 }
 
-export function formatConnectionName(name: string): string {
-  if (name.length > 30) {
-    return name.substring(0, 30) + '...'
-  }
-  return name
-}
-
-export function formatTopicName(name: string): string {
-  if (name.length > 40) {
-    return name.substring(0, 40) + '...'
-  }
-  return name
+export function formatPercentage(value: number, total: number): string {
+    if (total === 0) return '0%'
+    return ((value / total) * 100).toFixed(1) + '%'
 }
