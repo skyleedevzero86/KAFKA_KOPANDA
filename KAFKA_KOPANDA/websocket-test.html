@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>웹소켓 테스트</title>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+  <style>
+    .success { color: green; }
+    .error { color: red; }
+    .info { color: blue; }
+    .warning { color: orange; }
+    .message { color: purple; }
+  </style>
+</head>
+<body>
+<h2>웹소켓 테스트</h2>
+<button onclick="connect()">연결</button>
+<button onclick="subscribe()">구독</button>
+<button onclick="sendMessage()">메시지 전송</button>
+<button onclick="testDirectBroadcast()">직접 브로드캐스트 테스트</button>
+<div id="messages"></div>
+
+<script>
+  let stompClient = null;
+  let isSubscribed = false;
+  let connectionId = "550e8400-e29b-41d4-a716-446655440000";
+
+  function connect() {
+    const socket = new SockJS("http://localhost:8080/api/ws");
+    stompClient = Stomp.over(socket);
+
+    stompClient.connect(
+            {},
+            function (frame) {
+              console.log("연결됨: " + frame);
+              document.getElementById("messages").innerHTML +=
+                      "<p class='success'> 연결되었습니다!</p>";
+            },
+            function (error) {
+              console.error("연결 오류:", error);
+              document.getElementById("messages").innerHTML +=
+                      "<p class='error'> 연결 실패: " + error + "</p>";
+            }
+    );
+  }
+
+  function subscribe() {
+    if (!stompClient) {
+      document.getElementById("messages").innerHTML +=
+              "<p class='error'> 먼저 연결해주세요!</p>";
+      return;
+    }
+
+    stompClient.subscribe("/topic/connection-status", function (message) {
+      console.log("연결 상태 수신: " + message.body);
+      document.getElementById("messages").innerHTML +=
+              "<p class='message'> 연결 상태: " + message.body + "</p>";
+    });
+
+    stompClient.subscribe("/topic/global", function (message) {
+      console.log("글로벌 메시지 수신: " + message.body);
+      document.getElementById("messages").innerHTML +=
+              "<p class='message'> 글로벌: " + message.body + "</p>";
+    });
+
+    stompClient.subscribe("/topic/connection-change", function (message) {
+      console.log("연결 변경 수신: " + message.body);
+      document.getElementById("messages").innerHTML +=
+              "<p class='message'> 연결 변경: " + message.body + "</p>";
+    });
+
+    isSubscribed = true;
+    document.getElementById("messages").innerHTML +=
+            "<p class='warning'> 여러 토픽에 구독되었습니다</p>";
+  }
+
+  function sendMessage() {
+    if (!stompClient) {
+      document.getElementById("messages").innerHTML +=
+              "<p class='error'> 먼저 연결해주세요!</p>";
+      return;
+    }
+
+    if (!isSubscribed) {
+      document.getElementById("messages").innerHTML +=
+              "<p class='error'> 먼저 구독해주세요!</p>";
+      return;
+    }
+
+    stompClient.send("/app/subscribe/connection-status", {}, connectionId);
+    document.getElementById("messages").innerHTML +=
+            "<p class='message'> 메시지가 전송되었습니다!</p>";
+  }
+
+  function testDirectBroadcast() {
+    if (!stompClient) {
+      document.getElementById("messages").innerHTML +=
+              "<p class='error'> 먼저 연결해주세요!</p>";
+      return;
+    }
+
+    stompClient.send("/app/broadcast/global", {}, JSON.stringify({
+      type: "test-message",
+      data: "브라우저에서 보낸 메시지!",
+      timestamp: new Date().toISOString()
+    }));
+
+    document.getElementById("messages").innerHTML +=
+            "<p class='info'> 직접 브로드캐스트 메시지가 전송되었습니다!</p>";
+  }
+</script>
+</body>
+</html>
