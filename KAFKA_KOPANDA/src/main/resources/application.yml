@@ -53,7 +53,7 @@ spring:
     defer-datasource-initialization: false
 
   jackson:
-    default-property-inclusion: non_null
+    default-property-inclusion: NON_NULL
     serialization:
       write-dates-as-timestamps: false
       fail-on-empty-beans: false

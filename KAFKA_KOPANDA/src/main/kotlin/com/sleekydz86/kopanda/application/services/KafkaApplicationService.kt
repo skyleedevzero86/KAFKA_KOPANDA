@@ -82,7 +82,6 @@ class KafkaApplicationService(
         )
         val updatedConnection = connectionRepository.save(connection)
 
-        // ConnectionHistory 저장
         val history = ConnectionHistory.create(
             connectionId = connection.getId(),
             eventType = "CONNECTION_UPDATED",
@@ -163,10 +162,18 @@ class KafkaApplicationService(
     }
 
     override suspend fun getConnectionStatus(id: String): ConnectionStatus {
-        val connection = getConnectionOrThrow(id)
+    val connection = getConnectionOrThrow(id)
 
-        return try {
-            val isConnected = kafkaRepository.testConnection(connection)
+    return try {
+        logger.info("Checking connection status for: ${connection.name.value} (${connection.getConnectionString()})")
+        
+        val isConnected = kafkaRepository.testConnection(connection)
+        
+        if (isConnected) {
+
+            connection.markAsConnected()
+            connectionRepository.save(connection)
+            
             val adminClient = createAdminClient(connection)
             val clusterDescription = adminClient.describeCluster().nodes().get()
             val topicList = adminClient.listTopics().names().get()
@@ -186,37 +193,53 @@ class KafkaApplicationService(
 
             ConnectionStatus(
                 connectionId = id,
-                status = if (isConnected) ConnectionStatusType.CONNECTED else ConnectionStatusType.DISCONNECTED,
+                status = ConnectionStatusType.CONNECTED,
                 lastChecked = LocalDateTime.now(),
                 brokerCount = clusterDescription.size,
                 topicCount = topicList.size
             )
-        } catch (e: Exception) {
+        } else {
 
-            val history = ConnectionHistory.create(
-                connectionId = connection.getId(),
-                eventType = "CONNECTION_STATUS_CHECK_FAILED",
-                description = "연결 상태 확인 실패: ${e.message}",
-                details = mapOf(
-                    "status" to "ERROR",
-                    "error" to (e.message ?: "Unknown error")
-                )
-            )
-            connectionHistoryRepository.save(history)
-
-            activityManagementUseCase.logConnectionOffline(
-                connectionName = connection.name.value,
-                connectionId = connection.getId().value
-            )
-
+            connection.markAsDisconnected()
+            connectionRepository.save(connection)
+            
             ConnectionStatus(
                 connectionId = id,
-                status = ConnectionStatusType.ERROR,
+                status = ConnectionStatusType.DISCONNECTED,
                 lastChecked = LocalDateTime.now(),
-                errorMessage = e.message
+                errorMessage = "Connection test failed"
             )
         }
+    } catch (e: Exception) {
+        logger.error("Connection status check failed for ${connection.name.value}: ${e.message}", e)
+
+        connection.markAsError(e.message)
+        connectionRepository.save(connection)
+
+        val history = ConnectionHistory.create(
+            connectionId = connection.getId(),
+            eventType = "CONNECTION_STATUS_CHECK_FAILED",
+            description = "연결 상태 확인 실패: ${e.message}",
+            details = mapOf(
+                "status" to "ERROR",
+                "error" to (e.message ?: "Unknown error")
+            )
+        )
+        connectionHistoryRepository.save(history)
+
+        activityManagementUseCase.logConnectionOffline(
+            connectionName = connection.name.value,
+            connectionId = connection.getId().value
+        )
+
+        ConnectionStatus(
+            connectionId = id,
+            status = ConnectionStatusType.ERROR,
+            lastChecked = LocalDateTime.now(),
+            errorMessage = e.message
+        )
     }
+}
 
     override suspend fun refreshAllConnectionStatuses() {
         val startTime = LocalDateTime.now()
