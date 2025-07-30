@@ -1,93 +1,69 @@
 <template>
-  <div ref="chartContainer" class="chart-container"></div>
+  <div class="bar-chart">
+    <canvas ref="chartRef"></canvas>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { Chart } from '@antv/g2'
+import { Chart, registerables } from 'chart.js'
 
-interface BarChartData {
-  category: string
-  value: number
-  color?: string
-}
+Chart.register(...registerables)
 
 interface Props {
-  data: BarChartData[]
-  title?: string
-  height?: number
-  color?: string
+  data: {
+    labels: string[]
+    datasets: {
+      label: string
+      data: number[]
+      backgroundColor?: string[]
+      borderColor?: string[]
+    }[]
+  }
+  options?: any
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  height: 300,
-  color: '#409EFF'
+  options: () => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        beginAtZero: true
+      }
+    }
+  })
 })
 
-const chartContainer = ref<HTMLElement>()
+const chartRef = ref<HTMLCanvasElement>()
 let chart: Chart | null = null
 
-const initChart = () => {
-  if (!chartContainer.value) return
-
-  chart = new Chart({
-    container: chartContainer.value,
-    autoFit: true,
-    height: props.height
-  })
-
-  chart.data(props.data)
-
-  chart.scale('value', {
-    nice: true
-  })
-
-  chart.tooltip({
-    showCrosshairs: true,
-    shared: true
-  })
-
-  chart.axis('category', {
-    title: null
-  })
-
-  chart.axis('value', {
-    title: null
-  })
-
-  chart.interval()
-    .position('category*value')
-    .color(props.color)
-    .style({
-      fillOpacity: 0.8
-    })
-
-  if (props.title) {
-    chart.annotation().text({
-      position: ['50%', '0%'],
-      content: props.title,
-      style: {
-        textAlign: 'center',
-        fontSize: 14,
-        fontWeight: 'bold'
-      }
-    })
-  }
-
-  chart.render()
-}
-
-const updateChart = () => {
-  if (chart) {
-    chart.changeData(props.data)
-  }
-}
-
-watch(() => props.data, updateChart, { deep: true })
-
 onMounted(() => {
-  initChart()
+  if (chartRef.value) {
+    const ctx = chartRef.value.getContext('2d')
+    if (ctx) {
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: props.data,
+        options: props.options
+      })
+    }
+  }
 })
+
+watch(() => props.data, (newData) => {
+  if (chart) {
+    chart.data = newData
+    chart.update()
+  }
+}, { deep: true })
+
+watch(() => props.options, (newOptions) => {
+  if (chart) {
+    chart.options = { ...chart.options, ...newOptions }
+    chart.update()
+  }
+}, { deep: true })
 
 onUnmounted(() => {
   if (chart) {
@@ -97,8 +73,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.chart-container {
-  width: 100%;
-  height: 100%;
+.bar-chart {
+  position: relative;
+  height: 300px;
 }
 </style>

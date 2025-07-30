@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     title="새 토픽 생성"
-    width="600px"
+    width="500px"
     :before-close="handleClose"
   >
     <el-form
@@ -17,62 +17,26 @@
       </el-form-item>
 
       <el-form-item label="파티션 수" prop="partitions">
-        <el-input-number
-          v-model="form.partitions"
-          :min="1"
-          :max="1000"
-          placeholder="1"
-        />
+        <el-input-number v-model="form.partitions" :min="1" :max="100" />
       </el-form-item>
 
       <el-form-item label="복제 팩터" prop="replicationFactor">
-        <el-input-number
-          v-model="form.replicationFactor"
-          :min="1"
-          :max="10"
-          placeholder="1"
-        />
+        <el-input-number v-model="form.replicationFactor" :min="1" :max="10" />
       </el-form-item>
 
       <el-form-item label="설정">
-        <div class="config-section">
-          <div
-            v-for="(config, index) in form.configs"
-            :key="index"
-            class="config-row"
-          >
-            <el-input
-              v-model="config.key"
-              placeholder="키"
-              style="width: 40%"
-            />
-            <el-input
-              v-model="config.value"
-              placeholder="값"
-              style="width: 40%"
-            />
-            <el-button
-              type="danger"
-              size="small"
-              @click="removeConfig(index)"
-            >
-              삭제
-            </el-button>
-          </div>
-          <el-button
-            type="primary"
-            size="small"
-            @click="addConfig"
-          >
-            설정 추가
-          </el-button>
+        <el-button @click="addConfig">설정 추가</el-button>
+        <div v-for="(value, key) in form.config" :key="key" class="config-item">
+          <el-input v-model="configKeys[key]" placeholder="키" />
+          <el-input v-model="form.config[key]" placeholder="값" />
+          <el-button type="danger" @click="removeConfig(key)">삭제</el-button>
         </div>
       </el-form-item>
     </el-form>
 
     <template #footer>
       <span class="dialog-footer">
-        <el-button @click="handleCancel">취소</el-button>
+        <el-button @click="handleClose">취소</el-button>
         <el-button type="primary" @click="handleSubmit" :loading="loading">
           생성
         </el-button>
@@ -82,11 +46,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, computed } from 'vue'
 import { useTopicStore } from '@/stores/topic'
-import { validateTopicConfig } from '@/utils/validators'
-import type { CreateTopicRequest } from '@/types/topic'
+import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
+import type { TopicDto, CreateTopicRequest } from '@/types/topic'
 
 interface Props {
   modelValue: boolean
@@ -97,90 +61,63 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  created: [topic: any]
+  created: [topic: TopicDto]
 }>()
 
 const topicStore = useTopicStore()
-const formRef = ref()
-const visible = ref(props.modelValue)
+const formRef = ref<FormInstance>()
 const loading = ref(false)
 
-const form = ref<CreateTopicRequest & { configs: Array<{ key: string; value: string }> }>({
-  name: '',
-  partitions: 1,
-  replicationFactor: 1,
-  config: {},
-  configs: []
+const visible = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
 })
 
-const rules = {
+const form = ref<CreateTopicRequest>({
+  name: '',
+  partitions: 3,
+  replicationFactor: 1,
+  config: {}
+})
+
+const configKeys = ref<Record<string, string>>({})
+
+const rules: FormRules = {
   name: [
-    { required: true, message: '토픽 이름을 입력해주세요', trigger: 'blur' },
-    { min: 1, max: 249, message: '토픽 이름은 1-249자 사이여야 합니다', trigger: 'blur' }
+    { required: true, message: '토픽 이름을 입력하세요', trigger: 'blur' },
+    { pattern: /^[a-zA-Z0-9._-]+$/, message: '토픽 이름은 영문, 숫자, 점, 언더스코어, 하이픈만 사용 가능합니다', trigger: 'blur' }
   ],
   partitions: [
-    { required: true, message: '파티션 수를 입력해주세요', trigger: 'blur' },
-    { type: 'number', min: 1, max: 1000, message: '파티션 수는 1-1000 사이여야 합니다', trigger: 'blur' }
+    { required: true, message: '파티션 수를 입력하세요', trigger: 'blur' },
+    { type: 'number', min: 1, max: 100, message: '파티션 수는 1-100 사이여야 합니다', trigger: 'blur' }
   ],
   replicationFactor: [
-    { required: true, message: '복제 팩터를 입력해주세요', trigger: 'blur' },
+    { required: true, message: '복제 팩터를 입력하세요', trigger: 'blur' },
     { type: 'number', min: 1, max: 10, message: '복제 팩터는 1-10 사이여야 합니다', trigger: 'blur' }
   ]
 }
 
-watch(() => props.modelValue, (newValue) => {
-  visible.value = newValue
-})
-
-watch(visible, (newValue) => {
-  emit('update:modelValue', newValue)
-})
-
 const addConfig = () => {
-  form.value.configs.push({ key: '', value: '' })
+  const key = `config_${Date.now()}`
+  form.value.config[key] = ''
+  configKeys.value[key] = ''
 }
 
-const removeConfig = (index: number) => {
-  form.value.configs.splice(index, 1)
+const removeConfig = (key: string) => {
+  delete form.value.config[key]
+  delete configKeys.value[key]
 }
 
 const handleSubmit = async () => {
   if (!formRef.value) return
 
+  const valid = await formRef.value.validate()
+  if (!valid) return
+
+  loading.value = true
   try {
-    await formRef.value.validate()
-    
-    const validation = validateTopicConfig({
-      name: form.value.name,
-      partitions: form.value.partitions,
-      replicationFactor: form.value.replicationFactor
-    })
-    
-    if (!validation.isValid) {
-      ElMessage.error(validation.errors[0])
-      return
-    }
-
-    loading.value = true
-
-    // configs를 config 객체로 변환
-    const config: Record<string, string> = {}
-    form.value.configs.forEach(item => {
-      if (item.key && item.value) {
-        config[item.key] = item.value
-      }
-    })
-
-    const createRequest: CreateTopicRequest = {
-      name: form.value.name,
-      partitions: form.value.partitions,
-      replicationFactor: form.value.replicationFactor,
-      config
-    }
-
-    const newTopic = await topicStore.createTopic(props.connectionId, createRequest)
+    const newTopic = await topicStore.createTopic(props.connectionId, form.value)
     emit('created', newTopic)
-
     visible.value = false
     resetForm()
   } catch (error) {
@@ -190,25 +127,20 @@ const handleSubmit = async () => {
   }
 }
 
-const handleCancel = () => {
-  visible.value = false
-  resetForm()
+const resetForm = () => {
+  form.value = {
+    name: '',
+    partitions: 3,
+    replicationFactor: 1,
+    config: {}
+  }
+  configKeys.value = {}
+  formRef.value?.clearValidate()
 }
 
 const handleClose = () => {
   visible.value = false
   resetForm()
-}
-
-const resetForm = () => {
-  form.value = {
-    name: '',
-    partitions: 1,
-    replicationFactor: 1,
-    config: {},
-    configs: []
-  }
-  formRef.value?.clearValidate()
 }
 </script>
 
@@ -219,15 +151,14 @@ const resetForm = () => {
   gap: 12px;
 }
 
-.config-section {
+.config-item {
   display: flex;
-  flex-direction: column;
   gap: 8px;
+  margin-top: 8px;
+  align-items: center;
 }
 
-.config-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+.config-item .el-input {
+  flex: 1;
 }
 </style>

@@ -1,40 +1,30 @@
-export const KAFKA_CONSTANTS = {
-  DEFAULT_PORT: 9092,
-  DEFAULT_SSL_PORT: 9093,
-  MAX_PARTITIONS: 1000,
-  MAX_REPLICATION_FACTOR: 10,
-  DEFAULT_MESSAGE_LIMIT: 100,
-  MAX_MESSAGE_LIMIT: 1000
-}
+export const API_BASE_URL = '/api'
 
-export const UI_CONSTANTS = {
-  REFRESH_INTERVAL: 30000,
-  CONNECTION_TIMEOUT: 10000,
-  MAX_RETRY_ATTEMPTS: 3,
-  DEBOUNCE_DELAY: 300
-}
+export const WEBSOCKET_URL = '/ws'
 
-export const MESSAGE_TYPES = {
-  TEXT: 'text',
-  JSON: 'json',
-  BINARY: 'binary'
-}
+export const DEFAULT_PAGE_SIZE = 20
 
-export const OFFSET_TYPES = {
-  EARLIEST: 'earliest',
-  LATEST: 'latest',
-  SPECIFIC: 'specific'
+export const MAX_MESSAGE_LENGTH = 1000
+
+export const REFRESH_INTERVAL = 30000 // 30초
+
+export const CHART_COLORS = {
+    primary: '#409EFF',
+    success: '#67C23A',
+    warning: '#E6A23C',
+    danger: '#F56C6C',
+    info: '#909399'
 }
 
 export const CONNECTION_STATUS = {
-  CONNECTED: 'connected',
-  DISCONNECTED: 'disconnected',
-  CONNECTING: 'connecting',
-  ERROR: 'error'
-}
+    CONNECTED: 'CONNECTED',
+    DISCONNECTED: 'DISCONNECTED',
+    ERROR: 'ERROR',
+    CONNECTING: 'CONNECTING'
+} as const
 
-export const TOPIC_STATUS = {
-  HEALTHY: 'healthy',
-  UNHEALTHY: 'unhealthy',
-  UNDER_REPLICATED: 'under_replicated'
-}
+export const OFFSET_TYPES = {
+    EARLIEST: 'EARLIEST',
+    LATEST: 'LATEST',
+    SPECIFIC: 'SPECIFIC'
+} as const

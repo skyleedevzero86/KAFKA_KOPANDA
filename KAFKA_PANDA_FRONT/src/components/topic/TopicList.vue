@@ -2,92 +2,97 @@
   <div class="topic-list">
     <div class="topic-header">
       <h3>토픽 목록</h3>
-      <el-button type="primary" @click="showCreateDialog = true">
-        <el-icon><Plus /></el-icon>
-        새 토픽
-      </el-button>
+      <div class="header-actions">
+        <el-button @click="handleRefresh">
+          <el-icon><Refresh /></el-icon>
+          새로고침
+        </el-button>
+        <el-button type="primary" @click="showCreateDialog = true" :disabled="!currentConnection">
+          <el-icon><Plus /></el-icon>
+          새 토픽
+        </el-button>
+      </div>
     </div>
 
-    <div v-if="loading" class="loading-container">
-      <LoadingSpinner message="토픽 목록을 불러오는 중..." />
+    <div v-if="!currentConnection" class="no-connection">
+      <el-empty description="토픽을 보려면 먼저 연결을 선택하세요" />
     </div>
 
-    <div v-else-if="error" class="error-container">
-      <ErrorMessage :error="error" @close="topicStore.clearError()" />
-    </div>
-
-    <div v-else-if="topics.length === 0" class="empty-state">
-      <el-empty description="토픽이 없습니다" />
-    </div>
-
-    <div v-else class="topics-grid">
-      <TopicCard
-        v-for="topic in topics"
-        :key="topic.name"
-        :topic="topic"
-        @detail="handleDetail"
-        @delete="handleDelete"
-        @select="handleSelect"
-      />
+    <div v-else>
+      <el-tabs v-model="activeTab" @tab-click="handleTabClick">
+        <el-tab-pane label="모든 토픽" name="all">
+          <TopicGrid :topics="topics" @select="handleSelect" @delete="handleDelete" />
+        </el-tab-pane>
+        <el-tab-pane label="사용자 토픽" name="user">
+          <TopicGrid :topics="userTopics" @select="handleSelect" @delete="handleDelete" />
+        </el-tab-pane>
+        <el-tab-pane label="시스템 토픽" name="system">
+          <TopicGrid :topics="internalTopics" @select="handleSelect" @delete="handleDelete" />
+        </el-tab-pane>
+      </el-tabs>
     </div>
 
     <TopicForm
+      v-if="currentConnection"
       v-model="showCreateDialog"
-      :connection-id="connectionId"
+      :connection-id="currentConnection.id"
       @created="handleCreated"
     />
 
     <ConfirmDialog
       v-model="showDeleteDialog"
       title="토픽 삭제"
-      message="정말로 이 토픽을 삭제하시겠습니까?"
+      message="정말로 이 토픽을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
       @confirm="confirmDelete"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useTopicStore } from '@/stores/topic'
+import { useConnectionStore } from '@/stores/connection'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Refresh } from '@element-plus/icons-vue'
 import type { TopicDto } from '@/types/topic'
-import TopicCard from './TopicCard.vue'
+import TopicGrid from './TopicGrid.vue'
 import TopicForm from './TopicForm.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import ErrorMessage from '@/components/common/ErrorMessage.vue'
-
-interface Props {
-  connectionId: string
-}
-
-const props = defineProps<Props>()
 
 const topicStore = useTopicStore()
+const connectionStore = useConnectionStore()
 
+const activeTab = ref('all')
 const showCreateDialog = ref(false)
 const showDeleteDialog = ref(false)
 const deletingTopicName = ref<string | null>(null)
 
-const { topics, loading, error } = topicStore
+const currentConnection = computed(() => connectionStore.currentConnection)
+const { topics, userTopics, internalTopics, loading, error } = topicStore
 
-onMounted(() => {
-  topicStore.fetchTopics(props.connectionId)
-})
+watch(currentConnection, (connection) => {
+  if (connection) {
+    topicStore.fetchTopics(connection.id)
+  }
+}, { immediate: true })
 
-const handleDetail = (topic: TopicDto) => {
-  // 토픽 상세보기 로직
-  console.log('토픽 상세보기:', topic)
+const handleTabClick = () => {
+  // 탭 변경 시 추가 로직이 필요한 경우 여기에 구현
+}
+
+const handleRefresh = () => {
+  if (currentConnection.value) {
+    topicStore.fetchTopics(currentConnection.value.id)
+  }
+}
+
+const handleSelect = (topic: TopicDto) => {
+  topicStore.setCurrentTopic(null) // 상세 정보는 별도 페이지에서 로드
 }
 
 const handleDelete = (topicName: string) => {
   deletingTopicName.value = topicName
   showDeleteDialog.value = true
-}
-
-const handleSelect = (topic: TopicDto) => {
-  topicStore.setCurrentTopic(topic)
 }
 
 const handleCreated = (topic: TopicDto) => {
@@ -96,10 +101,10 @@ const handleCreated = (topic: TopicDto) => {
 }
 
 const confirmDelete = async () => {
-  if (!deletingTopicName.value) return
+  if (!deletingTopicName.value || !currentConnection.value) return
 
   try {
-    await topicStore.deleteTopic(props.connectionId, deletingTopicName.value)
+    await topicStore.deleteTopic(currentConnection.value.id, deletingTopicName.value)
     ElMessage.success('토픽이 성공적으로 삭제되었습니다.')
     showDeleteDialog.value = false
     deletingTopicName.value = null
@@ -126,17 +131,15 @@ const confirmDelete = async () => {
   color: #303133;
 }
 
-.loading-container,
-.error-container,
-.empty-state {
+.header-actions {
   display: flex;
-  justify-content: center;
-  padding: 40px;
+  gap: 12px;
 }
 
-.topics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
+.no-connection {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
 }
 </style>

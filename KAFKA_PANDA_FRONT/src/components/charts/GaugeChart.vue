@@ -1,133 +1,84 @@
 <template>
-  <div ref="chartContainer" class="chart-container"></div>
+  <div class="gauge-chart">
+    <canvas ref="chartRef"></canvas>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { Chart } from '@antv/g2'
+import { Chart, registerables } from 'chart.js'
+
+Chart.register(...registerables)
 
 interface Props {
   value: number
-  min?: number
-  max?: number
-  title?: string
-  height?: number
+  max: number
+  label: string
   color?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  min: 0,
-  max: 100,
-  height: 200,
   color: '#409EFF'
 })
 
-const chartContainer = ref<HTMLElement>()
+const chartRef = ref<HTMLCanvasElement>()
 let chart: Chart | null = null
 
-const initChart = () => {
-  if (!chartContainer.value) return
+const createGaugeData = () => {
+  const percentage = (props.value / props.max) * 100
+  return {
+    labels: [props.label],
+    datasets: [{
+      data: [percentage, 100 - percentage],
+      backgroundColor: [props.color, '#f0f0f0'],
+      borderWidth: 0
+    }]
+  }
+}
 
-  chart = new Chart({
-    container: chartContainer.value,
-    autoFit: true,
-    height: props.height
-  })
-
-  const data = [
-    { type: 'value', value: props.value }
-  ]
-
-  chart.data(data)
-
-  chart.coordinate('polar', {
-    startAngle: (-9 / 8) * Math.PI,
-    endAngle: (1 / 8) * Math.PI,
-    radius: 0.75
-  })
-
-  chart.scale('value', {
-    min: props.min,
-    max: props.max,
-    tickCount: 5
-  })
-
-  chart.axis('value', {
-    line: null,
-    label: {
-      offset: -36,
-      style: {
-        fontSize: 12,
-        textAlign: 'center',
-        textBaseline: 'middle'
-      }
+const createGaugeOptions = () => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  cutout: '80%',
+  plugins: {
+    legend: {
+      display: false
     },
-    grid: null,
-    tickLine: null
-  })
-
-  chart.axis('1', false)
-
-  chart.point()
-    .position('value*1')
-    .shape('pointer')
-    .color(props.color)
-
-  chart.annotation().arc({
-    start: [props.min, 1],
-    end: [props.max, 1],
-    style: {
-      stroke: '#CBCBCB',
-      lineWidth: 18,
-      lineDash: null
-    }
-  })
-
-  chart.annotation().arc({
-    start: [props.min, 1],
-    end: [props.value, 1],
-    style: {
-      stroke: props.color,
-      lineWidth: 18,
-      lineDash: null
-    }
-  })
-
-  chart.annotation().text({
-    position: ['50%', '85%'],
-    content: `${props.value}`,
-    style: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      textAlign: 'center'
-    }
-  })
-
-  if (props.title) {
-    chart.annotation().text({
-      position: ['50%', '95%'],
-      content: props.title,
-      style: {
-        fontSize: 12,
-        textAlign: 'center'
+    tooltip: {
+      callbacks: {
+        label: () => `${props.value} / ${props.max}`
       }
-    })
+    }
   }
-
-  chart.render()
-}
-
-const updateChart = () => {
-  if (chart) {
-    chart.destroy()
-    initChart()
-  }
-}
-
-watch(() => [props.value, props.min, props.max], updateChart)
+})
 
 onMounted(() => {
-  initChart()
+  if (chartRef.value) {
+    const ctx = chartRef.value.getContext('2d')
+    if (ctx) {
+      chart = new Chart(ctx, {
+        type: 'doughnut',
+        data: createGaugeData(),
+        options: createGaugeOptions()
+      })
+    }
+  }
+})
+
+watch(() => props.value, () => {
+  if (chart) {
+    chart.data = createGaugeData()
+    chart.options = createGaugeOptions()
+    chart.update()
+  }
+})
+
+watch(() => props.max, () => {
+  if (chart) {
+    chart.data = createGaugeData()
+    chart.options = createGaugeOptions()
+    chart.update()
+  }
 })
 
 onUnmounted(() => {
@@ -138,8 +89,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.chart-container {
-  width: 100%;
-  height: 100%;
+.gauge-chart {
+  position: relative;
+  height: 200px;
+  text-align: center;
 }
 </style>
