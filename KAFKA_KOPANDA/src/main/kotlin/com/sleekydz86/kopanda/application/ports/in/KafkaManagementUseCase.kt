@@ -26,6 +26,8 @@ interface KafkaManagementUseCase {
     suspend fun createTestConsumerGroup(connectionId: String, topicName: String): ConsumerGroupDto
     suspend fun getMetrics(connectionId: String): KafkaMetricsDto
 
+    suspend fun getTopicMetrics(connectionId: String): TopicMetricsDto
+
     suspend fun getDetailedMetrics(connectionId: String): DetailedMetricsDto
     suspend fun getTopicHealth(connectionId: String, topicName: String): TopicHealthDto
     suspend fun getAllTopicsHealth(connectionId: String): List<TopicHealthDto>

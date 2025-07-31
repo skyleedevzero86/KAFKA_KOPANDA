@@ -427,6 +427,11 @@ class KafkaApplicationService(
         return kafkaRepository.getMetrics(connection)
     }
 
+    override suspend fun getTopicMetrics(connectionId: String): TopicMetricsDto {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.getTopicMetrics(connection)
+    }
+
     override suspend fun getDetailedMetrics(connectionId: String): DetailedMetricsDto {
         val connection = getConnectionOrThrow(connectionId)
         return kafkaRepository.getDetailedMetrics(connection)
