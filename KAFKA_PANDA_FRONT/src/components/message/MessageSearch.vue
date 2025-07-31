@@ -14,7 +14,7 @@
       <el-form-item label="토픽" prop="topic">
         <el-select v-model="form.topic" placeholder="토픽을 선택하세요">
           <el-option
-            v-for="topic in topics"
+            v-for="topic in availableTopics"
             :key="topic.name"
             :label="topic.name"
             :value="topic.name"
@@ -24,12 +24,12 @@
 
       <el-form-item label="파티션">
         <el-select v-model="form.partition" placeholder="모든 파티션">
-          <el-option label="모든 파티션" :value="null" />
+          <el-option label="모든 파티션" :value="undefined" />
           <el-option
-            v-for="partition in partitions"
-            :key="partition.partitionNumber"
-            :label="`파티션 ${partition.partitionNumber}`"
-            :value="partition.partitionNumber"
+            v-for="partition in availablePartitions"
+            :key="partition"
+            :label="`파티션 ${partition}`"
+            :value="partition"
           />
         </el-select>
       </el-form-item>
@@ -81,12 +81,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useMessageStore } from '@/stores/message'
 import { useTopicStore } from '@/stores/topic'
 import { ElMessage } from 'element-plus'
 import type { MessageSearchCriteria } from '@/types/message'
-import type { TopicDto, PartitionDto } from '@/types/topic'
+import type { TopicDto } from '@/types/topic'
 
 interface Props {
   modelValue: boolean
@@ -111,38 +111,50 @@ const visible = computed({
 
 const form = ref<MessageSearchCriteria>({
   topic: '',
-  partition: null,
+  partition: undefined,
   key: '',
   value: '',
-  startOffset: null,
-  endOffset: null,
-  startTime: null,
-  endTime: null,
+  startOffset: undefined,
+  endOffset: undefined,
+  startTime: undefined,
+  endTime: undefined,
   limit: 100
 })
 
 const startTime = ref<Date | null>(null)
 const endTime = ref<Date | null>(null)
 
-const topics = computed(() => topicStore.topics)
+const availableTopics = computed(() => {
+  if (!props.connectionId) return []
+  return topicStore.topics.filter(topic => {
+   
+    return true
+  })
+})
 
-const partitions = computed(() => {
+const availablePartitions = computed(() => {
   if (!form.value.topic) return []
-  const topic = topics.value.find(t => t.name === form.value.topic)
-  return topic?.partitions || []
+  const topic = availableTopics.value.find(t => t.name === form.value.topic)
+  if (!topic) return []
+  return Array.from({ length: topic.partitionCount }, (_, i) => i)
 })
 
 const updateStartTime = (date: Date | null) => {
-  form.value.startTime = date ? date.getTime() : null
+  form.value.startTime = date ? date.getTime() : undefined
 }
 
 const updateEndTime = (date: Date | null) => {
-  form.value.endTime = date ? date.getTime() : null
+  form.value.endTime = date ? date.getTime() : undefined
 }
 
 const handleSubmit = async () => {
   if (!form.value.topic) {
     ElMessage.warning('토픽을 선택하세요')
+    return
+  }
+
+  if (!props.connectionId) {
+    ElMessage.warning('연결을 선택하세요')
     return
   }
 
@@ -152,7 +164,7 @@ const handleSubmit = async () => {
     emit('search', messages)
     visible.value = false
   } catch (error) {
-    // 에러는 store에서 처리됨
+    console.error('메시지 검색 실패:', error)
   } finally {
     loading.value = false
   }
@@ -162,18 +174,24 @@ const handleClose = () => {
   visible.value = false
   form.value = {
     topic: '',
-    partition: null,
+    partition: undefined,
     key: '',
     value: '',
-    startOffset: null,
-    endOffset: null,
-    startTime: null,
-    endTime: null,
+    startOffset: undefined,
+    endOffset: undefined,
+    startTime: undefined,
+    endTime: undefined,
     limit: 100
   }
   startTime.value = null
   endTime.value = null
 }
+
+watch(visible, async (newVal) => {
+  if (newVal && props.connectionId) {
+    await topicStore.fetchTopics(props.connectionId)
+  }
+})
 </script>
 
 <style scoped>

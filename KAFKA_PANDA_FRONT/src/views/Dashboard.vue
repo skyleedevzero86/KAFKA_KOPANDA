@@ -6,7 +6,6 @@
     </div>
 
     <div class="dashboard-grid">
-      <!-- 연결 상태 카드 -->
       <el-card class="status-card">
         <template #header>
           <div class="card-header">
@@ -26,7 +25,6 @@
         </div>
       </el-card>
 
-      <!-- 토픽 현황 카드 -->
       <el-card class="status-card">
         <template #header>
           <div class="card-header">
@@ -46,7 +44,6 @@
         </div>
       </el-card>
 
-      <!-- 메트릭스 카드 -->
       <el-card class="status-card">
         <template #header>
           <div class="card-header">
@@ -67,7 +64,6 @@
       </el-card>
     </div>
 
-    <!-- 차트 영역 -->
     <div class="charts-section">
       <el-row :gutter="20">
         <el-col :span="12">
@@ -78,10 +74,15 @@
                 <span>토픽 분포</span>
               </div>
             </template>
-            <PieChartComponent 
-              :data="topicDistributionData"
-              :options="pieChartOptions"
-            />
+            <div v-if="hasTopicData" style="height: 300px;">
+              <PieChartComponent 
+                :data="topicDistributionData"
+                :options="pieChartOptions"
+              />
+            </div>
+            <div v-else class="no-data">
+              <el-empty description="토픽 데이터가 없습니다." />
+            </div>
           </el-card>
         </el-col>
         <el-col :span="12">
@@ -106,6 +107,9 @@
                   {{ getConnectionStatusText(connection) }}
                 </el-tag>
               </div>
+              <div v-if="connectionStore.connections.length === 0" class="no-connections">
+                <el-empty description="연결된 클러스터가 없습니다." />
+              </div>
             </div>
           </el-card>
         </el-col>
@@ -118,14 +122,15 @@
 import { computed, ref, onMounted, onActivated } from 'vue'
 import { useConnectionStore } from '@/stores/connection'
 import { useTopicStore } from '@/stores/topic'
+import { useMetricsStore } from '@/stores/metrics'
 import { Connection, Document, Monitor, PieChart as PieChartIcon, TrendCharts } from '@element-plus/icons-vue'
 import PieChartComponent from '@/components/charts/PieChart.vue'
 import { formatDate } from '@/utils/formatters'
 
 const connectionStore = useConnectionStore()
 const topicStore = useTopicStore()
+const metricsStore = useMetricsStore()
 
-// 계산된 속성들
 const connectedClusters = computed(() => 
   connectionStore.connections.filter(c => c.lastConnected).length
 )
@@ -135,21 +140,43 @@ const internalTopics = computed(() =>
   topicStore.topics.filter(t => t.isInternal).length
 )
 
-const brokerCount = computed(() => 3) // 실제로는 메트릭스에서 가져와야 함
+const brokerCount = computed(() => metricsStore.brokerCount)
 const totalPartitions = computed(() => 
   topicStore.topics.reduce((sum, topic) => sum + topic.partitionCount, 0)
 )
 
-// 차트 데이터
-const topicDistributionData = computed(() => ({
-  labels: ['사용자 토픽', '내부 토픽'],
-  datasets: [{
-    data: [totalTopics.value - internalTopics.value, internalTopics.value],
-    backgroundColor: ['#409EFF', '#909399'],
-    borderColor: ['#409EFF', '#909399'],
-    borderWidth: 1
-  }]
-}))
+const hasTopicData = computed(() => {
+  const userTopics = totalTopics.value - internalTopics.value
+  const internalTopicsCount = internalTopics.value
+  return userTopics > 0 || internalTopicsCount > 0
+})
+
+const topicDistributionData = computed(() => {
+  const userTopics = totalTopics.value - internalTopics.value
+  const internalTopicsCount = internalTopics.value
+  
+  if (userTopics === 0 && internalTopicsCount === 0) {
+    return {
+      labels: ['데이터 없음'],
+      datasets: [{
+        data: [1],
+        backgroundColor: ['#f0f0f0'],
+        borderColor: ['#d0d0d0'],
+        borderWidth: 1
+      }]
+    }
+  }
+  
+  return {
+    labels: ['사용자 토픽', '내부 토픽'],
+    datasets: [{
+      data: [userTopics, internalTopicsCount],
+      backgroundColor: ['#409EFF', '#909399'],
+      borderColor: ['#409EFF', '#909399'],
+      borderWidth: 1
+    }]
+  }
+})
 
 const pieChartOptions = {
   responsive: true,
@@ -161,7 +188,6 @@ const pieChartOptions = {
   }
 }
 
-// 연결 상태 관련 함수들
 const getConnectionStatusType = (connection: any) => {
   if (connection.lastConnected) return 'success'
   return 'danger'
@@ -177,6 +203,7 @@ onMounted(async () => {
   await connectionStore.fetchConnections()
   if (connectionStore.currentConnection) {
     await topicStore.fetchTopics(connectionStore.currentConnection.id)
+    await metricsStore.fetchMetrics(connectionStore.currentConnection.id)
   }
 })
 
@@ -266,5 +293,16 @@ onActivated(async () => {
 .connection-name {
   font-weight: 500;
   color: #303133;
+}
+
+.no-connections {
+  padding: 20px;
+}
+
+.no-data {
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

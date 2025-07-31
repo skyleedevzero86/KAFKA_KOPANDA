@@ -1,85 +1,94 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { topicService } from '@/services/topicService'
-import type {
-  TopicDto,
-  TopicDetailDto,
-  CreateTopicRequest
-} from '@/types/topic'
+import type { TopicDto, TopicDetailDto, CreateTopicRequest } from '@/types/topic'
 
 export const useTopicStore = defineStore('topic', () => {
   const topics = ref<TopicDto[]>([])
   const currentTopic = ref<TopicDetailDto | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const currentConnectionId = ref<string | null>(null)
-
-  const healthyTopics = computed(() => 
-    topics.value.filter(topic => topic.isHealthy)
-  )
-
-  const internalTopics = computed(() => 
-    topics.value.filter(topic => topic.isInternal)
-  )
-
-  const userTopics = computed(() => 
-    topics.value.filter(topic => !topic.isInternal)
-  )
 
   async function fetchTopics(connectionId: string) {
-    loading.value = true
-    error.value = null
-    currentConnectionId.value = connectionId
+    if (!connectionId) {
+      error.value = 'Connection ID is required'
+      return
+    }
+
     try {
+      loading.value = true
+      error.value = null
       topics.value = await topicService.getTopics(connectionId)
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '토픽 목록을 불러오는데 실패했습니다.'
+      error.value = err instanceof Error ? err.message : 'Failed to fetch topics'
+      console.error('Failed to fetch topics:', err)
     } finally {
       loading.value = false
     }
   }
 
   async function getTopicDetails(connectionId: string, topicName: string) {
-    loading.value = true
-    error.value = null
+    if (!connectionId || !topicName) {
+      error.value = 'Connection ID and Topic Name are required'
+      return
+    }
+
     try {
+      loading.value = true
+      error.value = null
       currentTopic.value = await topicService.getTopicDetails(connectionId, topicName)
-      return currentTopic.value
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '토픽 상세 정보를 불러오는데 실패했습니다.'
-      throw err
+      error.value = err instanceof Error ? err.message : 'Failed to fetch topic details'
+      console.error('Failed to fetch topic details:', err)
     } finally {
       loading.value = false
     }
   }
 
   async function createTopic(connectionId: string, request: CreateTopicRequest) {
-    loading.value = true
-    error.value = null
-    try {
-      const newTopic = await topicService.createTopic(connectionId, request)
-      if (currentConnectionId.value === connectionId) {
-        topics.value.push(newTopic)
-      }
-      return newTopic
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : '토픽 생성에 실패했습니다.'
-      throw err
-    } finally {
-      loading.value = false
-    }
+  if (!connectionId) {
+    error.value = 'Connection ID is required'
+    console.error('토픽 생성 실패: connectionId가 없습니다')
+    return
   }
 
-  async function deleteTopic(connectionId: string, topicName: string) {
+  try {
     loading.value = true
     error.value = null
+    console.log('토픽 생성 시작:', { connectionId, request })
+    
+    const newTopic = await topicService.createTopic(connectionId, request)
+    console.log('토픽 생성 성공:', newTopic)
+    
+    topics.value.push(newTopic)
+    return newTopic
+  } catch (err) {
+    console.error('토픽 생성 실패 상세:', err)
+    error.value = err instanceof Error ? err.message : 'Failed to create topic'
+    console.error('Failed to create topic:', err)
+    throw err
+  } finally {
+    loading.value = false
+  }
+}
+
+  async function deleteTopic(connectionId: string, topicName: string) {
+    if (!connectionId || !topicName) {
+      error.value = 'Connection ID and Topic Name are required'
+      return
+    }
+
     try {
+      loading.value = true
+      error.value = null
       await topicService.deleteTopic(connectionId, topicName)
-      if (currentConnectionId.value === connectionId) {
-        topics.value = topics.value.filter(topic => topic.name !== topicName)
+      topics.value = topics.value.filter(topic => topic.name !== topicName)
+      if (currentTopic.value?.name === topicName) {
+        currentTopic.value = null
       }
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '토픽 삭제에 실패했습니다.'
+      error.value = err instanceof Error ? err.message : 'Failed to delete topic'
+      console.error('Failed to delete topic:', err)
       throw err
     } finally {
       loading.value = false
@@ -87,16 +96,20 @@ export const useTopicStore = defineStore('topic', () => {
   }
 
   async function createTestTopic(connectionId: string) {
-    loading.value = true
-    error.value = null
+    if (!connectionId) {
+      error.value = 'Connection ID is required'
+      return
+    }
+
     try {
-      const testTopic = await topicService.createTestTopic(connectionId)
-      if (currentConnectionId.value === connectionId) {
-        topics.value.push(testTopic)
-      }
-      return testTopic
+      loading.value = true
+      error.value = null
+      const newTopic = await topicService.createTestTopic(connectionId)
+      topics.value.push(newTopic)
+      return newTopic
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '테스트 토픽 생성에 실패했습니다.'
+      error.value = err instanceof Error ? err.message : 'Failed to create test topic'
+      console.error('Failed to create test topic:', err)
       throw err
     } finally {
       loading.value = false
@@ -116,10 +129,6 @@ export const useTopicStore = defineStore('topic', () => {
     currentTopic,
     loading,
     error,
-    currentConnectionId,
-    healthyTopics,
-    internalTopics,
-    userTopics,
     fetchTopics,
     getTopicDetails,
     createTopic,

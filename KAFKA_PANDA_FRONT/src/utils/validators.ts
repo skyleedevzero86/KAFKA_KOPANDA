@@ -1,66 +1,42 @@
-export function isValidHost(host: string): boolean {
-    const hostRegex = /^[a-zA-Z0-9.-]+$/
-    return hostRegex.test(host)
+
+export function validateTopicName(name: string): boolean {
+  if (!name || name.length < 1 || name.length > 50) {
+    return false
+  }
+  
+  const topicNameRegex = /^[a-zA-Z0-9._-]+$/
+  return topicNameRegex.test(name)
 }
 
-export function isValidPort(port: number): boolean {
-    return port >= 1 && port <= 65535
+export function validateHost(host: string): boolean {
+  if (!host) return false
+  
+  const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
+  const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+  
+  return ipRegex.test(host) || domainRegex.test(host) || host === 'localhost'
 }
 
-export function isValidTopicName(name: string): boolean {
-    const topicRegex = /^[a-zA-Z0-9._-]+$/
-    return topicRegex.test(name) && name.length <= 249 && !name.startsWith('.') && !name.startsWith('_')
+export function validatePort(port: number): boolean {
+  return port >= 1 && port <= 65535
 }
 
-export function isValidConnectionName(name: string): boolean {
-    const nameRegex = /^[a-zA-Z0-9가-힣\s_-]+$/
-    return nameRegex.test(name) && name.length <= 100
+export function validateConnectionName(name: string): boolean {
+  return Boolean(name && name.length >= 1 && name.length <= 50)
 }
 
-export function isValidMessageKey(key: string): boolean {
-    return key.length <= 1024
+export function validateMessageKey(key: string): boolean {
+  return key === null || key === undefined || (typeof key === 'string' && key.length <= 1000)
 }
 
-export function isValidMessageValue(value: string): boolean {
-    return value.length <= 1048576 // 1MB
+export function validateMessageValue(value: string): boolean {
+  return Boolean(value && value.length > 0 && value.length <= 1000000) 
 }
 
-export function validateConnectionRequest(request: any): string[] {
-    const errors: string[] = []
-
-    if (!request.name || !isValidConnectionName(request.name)) {
-        errors.push('유효하지 않은 연결 이름입니다.')
-    }
-
-    if (!request.host || !isValidHost(request.host)) {
-        errors.push('유효하지 않은 호스트입니다.')
-    }
-
-    if (!request.port || !isValidPort(request.port)) {
-        errors.push('유효하지 않은 포트입니다.')
-    }
-
-    if (request.saslEnabled && (!request.username || !request.password)) {
-        errors.push('SASL이 활성화된 경우 사용자명과 비밀번호가 필요합니다.')
-    }
-
-    return errors
+export function validatePartitionNumber(partition: number, maxPartitions: number): boolean {
+  return partition >= 0 && partition < maxPartitions
 }
 
-export function validateTopicRequest(request: any): string[] {
-    const errors: string[] = []
-
-    if (!request.name || !isValidTopicName(request.name)) {
-        errors.push('유효하지 않은 토픽 이름입니다.')
-    }
-
-    if (!request.partitions || request.partitions < 1 || request.partitions > 100) {
-        errors.push('파티션 수는 1-100 사이여야 합니다.')
-    }
-
-    if (!request.replicationFactor || request.replicationFactor < 1 || request.replicationFactor > 10) {
-        errors.push('복제 팩터는 1-10 사이여야 합니다.')
-    }
-
-    return errors
+export function validateOffset(offset: number): boolean {
+  return offset >= 0
 }

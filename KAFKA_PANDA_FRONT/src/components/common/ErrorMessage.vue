@@ -1,8 +1,8 @@
 <template>
-  <div v-if="error" class="error-message">
+  <div class="error-message">
     <el-alert
       :title="title"
-      :description="error"
+      :description="message"
       type="error"
       show-icon
       :closable="closable"
@@ -13,8 +13,8 @@
 
 <script setup lang="ts">
 interface Props {
-  error: string | null
   title?: string
+  message: string
   closable?: boolean
 }
 
@@ -30,6 +30,6 @@ defineEmits<{
 
 <style scoped>
 .error-message {
-  margin-bottom: 16px;
+  margin: 16px 0;
 }
 </style>

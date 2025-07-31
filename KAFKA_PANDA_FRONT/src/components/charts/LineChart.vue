@@ -6,7 +6,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { Chart, ChartConfiguration, registerables } from 'chart.js'
+import { Chart, registerables } from 'chart.js'
 
 Chart.register(...registerables)
 
@@ -18,6 +18,7 @@ interface Props {
       data: number[]
       borderColor?: string
       backgroundColor?: string
+      tension?: number
     }[]
   }
   options?: any
@@ -27,6 +28,11 @@ const props = withDefaults(defineProps<Props>(), {
   options: () => ({
     responsive: true,
     maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top'
+      }
+    },
     scales: {
       y: {
         beginAtZero: true

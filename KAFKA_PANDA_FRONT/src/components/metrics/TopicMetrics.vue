@@ -5,7 +5,11 @@
         <span>토픽 메트릭</span>
       </template>
 
-      <el-table :data="topics" style="width: 100%">
+      <div v-if="topics.length === 0" class="empty-state">
+        <el-empty description="토픽이 없습니다" />
+      </div>
+
+      <el-table v-else :data="topics" style="width: 100%">
         <el-table-column prop="name" label="토픽명" />
         <el-table-column prop="partitionCount" label="파티션" width="100" />
         <el-table-column prop="messageCount" label="메시지 수" width="120">
@@ -24,15 +28,15 @@
           <template #default="{ row }">
             <div class="mini-chart">
               <BarChart
-                  :data="{
-                  labels: ['파티션'],
+                :data="{
+                  labels: ['메시지'],
                   datasets: [{
-                    label: '메시지',
+                    label: '메시지 수',
                     data: [row.messageCount],
                     backgroundColor: ['#409EFF']
                   }]
                 }"
-                  :options="{ responsive: true, maintainAspectRatio: false }"
+                :options="{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }"
               />
             </div>
           </template>
@@ -57,6 +61,11 @@ defineProps<Props>()
 <style scoped>
 .topic-metrics {
   margin-bottom: 20px;
+}
+
+.empty-state {
+  padding: 20px;
+  text-align: center;
 }
 
 .mini-chart {

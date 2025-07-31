@@ -3,20 +3,31 @@
     <template #header>
       <div class="card-header">
         <span class="topic-name">{{ topic.name }}</span>
-        <div class="topic-badges">
-          <el-tag v-if="topic.isInternal" size="small" type="warning">시스템</el-tag>
-          <el-tag v-if="topic.isHealthy" size="small" type="success">정상</el-tag>
-          <el-tag v-else size="small" type="danger">오류</el-tag>
+        <div class="topic-status">
+          <el-tag
+            :type="topic.isHealthy ? 'success' : 'danger'"
+            size="small"
+          >
+            {{ topic.isHealthy ? '정상' : '오류' }}
+          </el-tag>
+          <el-tag
+            v-if="topic.isInternal"
+            type="info"
+            size="small"
+          >
+            내부
+          </el-tag>
         </div>
       </div>
     </template>
 
     <div class="card-content">
       <div class="topic-info">
-        <p><strong>파티션:</strong> {{ topic.partitionCount }}</p>
+        <p><strong>파티션:</strong> {{ topic.partitionCount }}개</p>
         <p><strong>복제 팩터:</strong> {{ topic.replicationFactor }}</p>
         <p><strong>메시지 수:</strong> {{ formatNumber(topic.messageCount) }}</p>
         <p><strong>생성일:</strong> {{ formatDate(topic.createdAt) }}</p>
+        <p><strong>수정일:</strong> {{ formatDate(topic.updatedAt) }}</p>
       </div>
 
       <div class="card-actions">
@@ -41,8 +52,8 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  select: [topic: TopicDto]
   delete: [topicName: string]
+  select: [topic: TopicDto]
 }>()
 
 const handleClick = () => {
@@ -75,15 +86,11 @@ const handleDelete = () => {
 .topic-name {
   font-weight: bold;
   color: #303133;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.topic-badges {
+.topic-status {
   display: flex;
-  gap: 4px;
+  gap: 8px;
 }
 
 .card-content {
@@ -100,6 +107,7 @@ const handleDelete = () => {
 
 .card-actions {
   display: flex;
+  gap: 8px;
   justify-content: flex-end;
 }
 </style>
