@@ -1,10 +1,5 @@
-# KAFKA_KOPANDA
-
 ![image](https://github.com/user-attachments/assets/e0e2539b-d74a-4e42-a149-b447b5092178)
 
-Read file: KAFKA_KOPANDA/src/main/resources/application.yml
-Read file: KAFKA_KOPANDA/build.gradle.kts
-Read file: KAFKA_PANDA_FRONT/package.json
 # Kafka Kopanda - Kafka 관리 및 모니터링 시스템
 
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.3-green.svg)
