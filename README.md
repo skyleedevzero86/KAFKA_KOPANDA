@@ -142,15 +142,22 @@ curl -X GET http://localhost:8080/api/connections/{connectionId}/topics
 
 ### 🖥️ **메인 대시보드**
 
-<img width="903" height="722" alt="image" src="https://github.com/user-attachments/assets/faa6f552-7bc5-4aa8-9990-d4276dc8dc7a" />
+<img width="1146" height="650" alt="image" src="https://github.com/user-attachments/assets/a3da3208-3236-411d-b516-bd8957e4365c" />
 
 ### 🔗 **연결 관리**
 
-![연결 관리](docs/images/connections.png)
+<img width="1903" height="402" alt="image" src="https://github.com/user-attachments/assets/416089f8-2259-48eb-9aa2-040b377851c0" />
+
+
+### 📊 **토픽 관리**
+
+<img width="944" height="446" alt="image" src="https://github.com/user-attachments/assets/afae13ee-ce2a-4503-bc22-0fa935f6b262" />
 
 ### 📊 **토픽 모니터링**
 
-![토픽 모니터링](docs/images/topics.png)
+<img width="1014" height="828" alt="image" src="https://github.com/user-attachments/assets/bec4abce-a8a4-4856-a84c-2232d617a0eb" />
+<img width="1722" height="902" alt="image" src="https://github.com/user-attachments/assets/75307170-7418-49be-ab58-987caa7ac635" />
+
 
 ### 💬 **메시지 관리**
 
@@ -158,7 +165,7 @@ curl -X GET http://localhost:8080/api/connections/{connectionId}/topics
 
 ### 📈 **메트릭 대시보드**
 
-<img width="884" height="819" alt="image" src="https://github.com/user-attachments/assets/fe6a8d04-8284-44f5-9b85-3ecd18bb8279" />
+<img width="1911" height="407" alt="image" src="https://github.com/user-attachments/assets/8cd11546-f935-4513-9692-66ff24a4ca17" />
 
 
 ## 🏗️ **아키텍처**
