@@ -3,18 +3,27 @@
     <div class="monitoring-header">
       <h3>토픽 모니터링</h3>
       <div class="header-actions">
-        <el-switch
-          v-model="autoRefresh"
-          active-text="자동 새로고침"
-          inactive-text="수동 새로고침"
-        />
-        <el-select v-model="refreshInterval" :disabled="!autoRefresh">
-          <el-option label="5초" :value="5000" />
-          <el-option label="10초" :value="10000" />
-          <el-option label="30초" :value="30000" />
-          <el-option label="1분" :value="60000" />
-        </el-select>
-        <el-button @click="refreshData">
+        <div class="refresh-controls">
+          <span class="refresh-label">수동 새로고침</span>
+          <el-switch
+            v-model="autoRefresh"
+            active-color="#409EFF"
+            inactive-color="#DCDFE6"
+          />
+          <span class="refresh-label">자동 새로고침</span>
+          <el-select 
+            v-model="refreshInterval" 
+            :disabled="!autoRefresh"
+            size="small"
+            style="width: 100px; margin-left: 8px;"
+          >
+            <el-option label="5초" :value="5000" />
+            <el-option label="10초" :value="10000" />
+            <el-option label="30초" :value="30000" />
+            <el-option label="1분" :value="60000" />
+          </el-select>
+        </div>
+        <el-button @click="refreshData" type="primary">
           <el-icon><Refresh /></el-icon>
           새로고침
         </el-button>
@@ -78,25 +87,25 @@
         </el-col>
 
         <el-col :span="8">
-          <el-card class="monitoring-card">
+          <el-card class="monitoring-card message-throughput-card">
             <template #header>
               <div class="card-header">
                 <span>메시지 처리량</span>
                 <el-icon><TrendCharts /></el-icon>
               </div>
             </template>
-            <div class="summary-stats">
-              <div class="stat-item">
-                <div class="stat-value">{{ totalMessages }}</div>
-                <div class="stat-label">총 메시지</div>
+            <div class="message-throughput-stats">
+              <div class="throughput-item">
+                <div class="throughput-label">총 메시지</div>
+                <div class="throughput-value">{{ formatNumber(totalMessages) }}</div>
               </div>
-              <div class="stat-item">
-                <div class="stat-value">{{ messagesPerSecond }}</div>
-                <div class="stat-label">초당 메시지</div>
+              <div class="throughput-item">
+                <div class="throughput-label">초당 메시지</div>
+                <div class="throughput-value">{{ formatNumber(messagesPerSecond) }}</div>
               </div>
-              <div class="stat-item">
-                <div class="stat-value">{{ avgMessageSize }}</div>
-                <div class="stat-label">평균 크기</div>
+              <div class="throughput-item">
+                <div class="throughput-label">평균 크기</div>
+                <div class="throughput-value">{{ formatBytes(avgMessageSize) }}</div>
               </div>
             </div>
           </el-card>
@@ -256,7 +265,7 @@ import {
   CircleCheck,
   CircleClose
 } from '@element-plus/icons-vue'
-import type { TopicDto } from '@/types/topic'
+import type { TopicDto, TopicDetailDto } from '@/types/topic'
 import BarChart from '@/components/charts/BarChart.vue'
 import PieChart from '@/components/charts/PieChart.vue'
 import LineChart from '@/components/charts/LineChart.vue'
@@ -569,17 +578,40 @@ const confirmDelete = async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  background-color: white;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .monitoring-header h3 {
   margin: 0;
   color: #303133;
+  font-size: 1.5rem;
+  font-weight: 600;
 }
 
 .header-actions {
   display: flex;
-  gap: 12px;
   align-items: center;
+  gap: 16px;
+}
+
+.refresh-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #f5f7fa;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+}
+
+.refresh-label {
+  font-size: 0.9rem;
+  color: #606266;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .no-connection {
@@ -591,6 +623,27 @@ const confirmDelete = async () => {
 
 .monitoring-card {
   height: 200px;
+  transition: all 0.3s ease;
+}
+
+.monitoring-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.message-throughput-card {
+  height: 200px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.message-throughput-card .card-header {
+  color: white;
+}
+
+.message-throughput-card .el-card__header {
+  background: rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .card-header {
@@ -604,6 +657,33 @@ const confirmDelete = async () => {
   justify-content: space-around;
   align-items: center;
   height: 120px;
+}
+
+.message-throughput-stats {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 120px;
+  padding: 0 16px;
+}
+
+.throughput-item {
+  text-align: center;
+  flex: 1;
+}
+
+.throughput-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.throughput-value {
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .stat-item {
@@ -631,6 +711,7 @@ const confirmDelete = async () => {
 .stat-label {
   color: #606266;
   margin-top: 8px;
+  font-size: 0.9rem;
 }
 
 .chart-container {
@@ -668,7 +749,7 @@ const confirmDelete = async () => {
 }
 
 .alert-icon {
-  margin-right: 12px;
+  margin-right: 8px;
   font-size: 1.2rem;
 }
 
@@ -677,28 +758,104 @@ const confirmDelete = async () => {
 }
 
 .alert-title {
-  font-weight: 500;
+  font-weight: bold;
   margin-bottom: 4px;
 }
 
 .alert-message {
   color: #606266;
-  margin-bottom: 4px;
+  font-size: 0.9rem;
 }
 
 .alert-time {
-  font-size: 12px;
   color: #909399;
+  font-size: 0.8rem;
 }
 
-.alert-actions {
-  margin-left: 12px;
+.mini-chart {
+  width: 100%;
+  height: 40px;
 }
 
-.no-alerts {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
+.topic-detail-dialog {
+  max-width: 800px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.detail-item {
+  background-color: #f5f7fa;
+  padding: 12px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.detail-label {
+  font-size: 0.8rem;
+  color: #909399;
+  margin-bottom: 4px;
+}
+
+.detail-value {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #303133;
+}
+
+.partition-table {
+  margin-top: 16px;
+}
+
+.health-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.health-indicator.healthy {
+  background-color: #67C23A;
+}
+
+.health-indicator.unhealthy {
+  background-color: #F56C6C;
+}
+
+.health-indicator.warning {
+  background-color: #E6A23C;
+}
+
+@media (max-width: 768px) {
+  .monitoring-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .header-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .refresh-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .message-throughput-stats {
+    flex-direction: column;
+    gap: 16px;
+    height: auto;
+    padding: 16px;
+  }
+  
+  .throughput-item {
+    margin-bottom: 8px;
+  }
 }
 </style>
