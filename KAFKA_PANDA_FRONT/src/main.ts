@@ -10,7 +10,6 @@ import './index.css'
 const app = createApp(App)
 
 app.use(createPinia())
-
 app.use(ElementPlus)
 
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
