@@ -31,6 +31,21 @@ class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errorResponse)
     }
     
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun handleIllegalArgumentException(ex: IllegalArgumentException, request: WebRequest): ResponseEntity<ErrorResponse> {
+        logger.warn("Validation Exception: ${ex.message}")
+        
+        val errorResponse = ErrorResponse(
+            timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+            status = HttpStatus.BAD_REQUEST.value(),
+            error = "Bad Request",
+            message = ex.message ?: "Validation failed",
+            path = request.getDescription(false).removePrefix("uri=")
+        )
+        
+        return ResponseEntity.badRequest().body(errorResponse)
+    }
+    
     @ExceptionHandler(Exception::class)
     fun handleGenericException(ex: Exception, request: WebRequest): ResponseEntity<ErrorResponse> {
         logger.error("Unexpected error occurred", ex)
@@ -39,10 +54,11 @@ class GlobalExceptionHandler {
             timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
             status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
             error = "Internal Server Error",
-            message = "An unexpected error occurred",
+            message = "An unexpected error occurred: ${ex.message}",
             path = request.getDescription(false).removePrefix("uri=")
         )
         
         return ResponseEntity.internalServerError().body(errorResponse)
     }
-} 
+}
+ 

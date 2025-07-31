@@ -18,6 +18,9 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import org.slf4j.LoggerFactory
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import java.time.Duration
+import java.util.Properties
 
 @Service
 @Transactional
@@ -40,33 +43,51 @@ class KafkaApplicationService(
     }
 
     override suspend fun createConnection(request: CreateConnectionRequest): ConnectionDto {
-        val connection = Connection.create(
-            name = request.name,
-            host = request.host,
-            port = request.port,
-            sslEnabled = request.sslEnabled,
-            saslEnabled = request.saslEnabled,
-            username = request.username,
-            password = request.password
-        )
-        val savedConnection = connectionRepository.save(connection)
+        logger.info("연결 생성 시작: ${request.name}")
 
-        activityManagementUseCase.logConnectionCreated(request.name, savedConnection.getId().value)
+        try {
 
-        val history = ConnectionHistory.create(
-            connectionId = savedConnection.getId(),
-            eventType = "CONNECTION_CREATED",
-            description = "연결이 생성되었습니다: ${request.name}",
-            details = mapOf(
-                "host" to request.host,
-                "port" to request.port.toString(),
-                "sslEnabled" to request.sslEnabled.toString(),
-                "saslEnabled" to request.saslEnabled.toString()
+            val existingConnection = connectionRepository.findByName(request.name)
+            if (existingConnection != null) {
+                logger.warn("중복된 연결 이름: ${request.name}")
+                throw DomainException("이미 존재하는 연결 이름입니다: ${request.name}")
+            }
+
+            val connection = Connection.create(
+                name = request.name,
+                host = request.host,
+                port = request.port,
+                sslEnabled = request.sslEnabled,
+                saslEnabled = request.saslEnabled,
+                username = request.username,
+                password = request.password
             )
-        )
-        connectionHistoryRepository.save(history)
 
-        return savedConnection.toConnectionDto()
+            logger.info("연결 엔티티 생성 완료: ${connection.getId().value}")
+
+            val savedConnection = connectionRepository.save(connection)
+            logger.info("연결 저장 완료: ${savedConnection.getId().value}")
+
+            activityManagementUseCase.logConnectionCreated(request.name, savedConnection.getId().value)
+
+            val history = ConnectionHistory.create(
+                connectionId = savedConnection.getId(),
+                eventType = "CONNECTION_CREATED",
+                description = "연결이 생성되었습니다: ${request.name}",
+                details = mapOf(
+                    "host" to request.host,
+                    "port" to request.port.toString(),
+                    "sslEnabled" to request.sslEnabled.toString(),
+                    "saslEnabled" to request.saslEnabled.toString()
+                )
+            )
+            connectionHistoryRepository.save(history)
+
+            return savedConnection.toConnectionDto()
+        } catch (e: Exception) {
+            logger.error("연결 생성 실패: ${request.name}", e)
+            throw e
+        }
     }
 
     override suspend fun updateConnection(id: String, request: UpdateConnectionRequest): ConnectionDto {
@@ -306,15 +327,30 @@ class KafkaApplicationService(
     }
 
     override suspend fun createTopic(connectionId: String, request: CreateTopicRequest): TopicDto {
-        val connection = getConnectionOrThrow(connectionId)
-        val topic = Topic.create(
-            name = request.name,
-            partitionCount = request.partitions,
-            replicationFactor = request.replicationFactor,
-            config = request.config
-        )
-        val createdTopic = kafkaRepository.createTopic(connection, topic)
-        return createdTopic.toTopicDto()
+        logger.info("토픽 생성 시작: $connectionId/${request.name}")
+
+        try {
+            val connection = getConnectionOrThrow(connectionId)
+            val topic = Topic.create(
+                name = request.name,
+                partitionCount = request.partitions,
+                replicationFactor = request.replicationFactor,
+                config = request.config
+            )
+
+            logger.info("토픽 엔티티 생성 완료: ${topic.name.value}")
+
+            val createdTopic = kafkaRepository.createTopic(connection, topic)
+
+            logger.info("토픽 생성 성공: ${createdTopic.name.value}")
+
+            activityManagementUseCase.logTopicCreated(request.name)
+
+            return createdTopic.toTopicDto()
+        } catch (e: Exception) {
+            logger.error("토픽 생성 실패: $connectionId/${request.name}", e)
+            throw e
+        }
     }
 
     override suspend fun deleteTopic(connectionId: String, topicName: String) {
@@ -534,6 +570,11 @@ class KafkaApplicationService(
                     details = it.details
                 )
             }
+    }
+
+    override suspend fun createTestConsumerGroup(connectionId: String, topicName: String): ConsumerGroupDto {
+        val connection = getConnectionOrThrow(connectionId)
+        return kafkaRepository.createTestConsumerGroup(connection, topicName)
     }
 
     private suspend fun getConnectionOrThrow(id: String): Connection {

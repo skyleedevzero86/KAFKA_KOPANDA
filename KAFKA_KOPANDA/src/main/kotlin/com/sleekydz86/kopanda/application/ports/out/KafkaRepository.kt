@@ -58,4 +58,5 @@ interface KafkaRepository {
     suspend fun getBrokerMetrics(connection: Connection): BrokerMetricsDto
     suspend fun getTopicMetrics(connection: Connection): TopicMetricsDto
     suspend fun getPartitionMetrics(connection: Connection): PartitionMetricsDto
+    suspend fun createTestConsumerGroup(connection: Connection, topicName: String): ConsumerGroupDto
 }

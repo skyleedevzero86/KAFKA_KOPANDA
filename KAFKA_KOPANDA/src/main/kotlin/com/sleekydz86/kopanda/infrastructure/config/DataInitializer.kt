@@ -40,3 +40,4 @@ class DataInitializer(
         logger.info("데이터 초기화 완료")
     }
 }
+ 

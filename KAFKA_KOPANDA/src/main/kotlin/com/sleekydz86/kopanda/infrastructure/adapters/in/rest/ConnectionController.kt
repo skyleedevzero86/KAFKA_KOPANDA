@@ -122,12 +122,20 @@ class ConnectionController(
         @RequestBody request: CreateConnectionRequest
     ): ResponseEntity<ConnectionDto> {
         return try {
-            logger.info("연결 생성 요청: ${request.name}")
+            logger.info("연결 생성 요청 수신: name=${request.name}, host=${request.host}, port=${request.port}")
+
             val connection = connectionManagementUseCase.createConnection(request)
-            logger.info("연결 생성 성공: ${connection.id}")
+
+            logger.info("연결 생성 성공: id=${connection.id}, name=${connection.name}")
             ResponseEntity.status(201).body(connection)
+        } catch (e: DomainException) {
+            logger.warn("도메인 예외 발생: ${e.message}")
+            ResponseEntity.badRequest().build()
+        } catch (e: IllegalArgumentException) {
+            logger.warn("유효성 검사 실패: ${e.message}")
+            ResponseEntity.badRequest().build()
         } catch (e: Exception) {
-            logger.error("연결 생성 실패: ${request.name}", e)
+            logger.error("연결 생성 실패: name=${request.name}", e)
             ResponseEntity.internalServerError().build()
         }
     }
@@ -319,10 +327,49 @@ class ConnectionController(
         }
     }
 
+    @GetMapping("/{connectionId}/consumer-groups")
+    @Operation(
+        summary = "컨슈머 그룹 목록 조회",
+        description = "특정 연결의 컨슈머 그룹 목록을 조회합니다."
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "컨슈머 그룹 목록 조회 성공",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ConsumerGroupDto::class)
+                )]
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "연결을 찾을 수 없음"
+            )
+        ]
+    )
+    suspend fun getConsumerGroups(
+        @Parameter(description = "연결 ID", required = true)
+        @PathVariable connectionId: String
+    ): ResponseEntity<List<ConsumerGroupDto>> {
+        return try {
+            logger.info("컨슈머 그룹 목록 조회 요청: $connectionId")
+            val consumerGroups = kafkaManagementUseCase.getConsumerGroups(connectionId)
+            logger.info("컨슈머 그룹 목록 조회 성공: ${consumerGroups.size}개")
+            ResponseEntity.ok(consumerGroups)
+        } catch (e: DomainException) {
+            logger.warn("연결을 찾을 수 없음: $connectionId")
+            ResponseEntity.notFound().build()
+        } catch (e: Exception) {
+            logger.error("컨슈머 그룹 목록 조회 실패: $connectionId", e)
+            ResponseEntity.internalServerError().build()
+        }
+    }
+
     @GetMapping("/{connectionId}/metrics")
     @Operation(
-        summary = "메트릭 조회",
-        description = "특정 연결의 Kafka 메트릭을 조회합니다."
+        summary = "연결 메트릭 조회",
+        description = "특정 연결의 메트릭을 조회합니다."
     )
     @ApiResponses(
         value = [
@@ -496,4 +543,22 @@ class ConnectionController(
             ResponseEntity.internalServerError().build()
         }
     }
+    @PostMapping("/{connectionId}/consumer-groups/test")
+suspend fun createTestConsumerGroup(
+    @PathVariable connectionId: String,
+    @RequestParam topicName: String
+): ResponseEntity<ConsumerGroupDto> {
+    logger.info("테스트 컨슈머 그룹 생성 요청: connectionId=$connectionId, topicName=$topicName")
+    
+    return try {
+        val consumerGroup = kafkaManagementUseCase.createTestConsumerGroup(connectionId, topicName)
+        ResponseEntity.ok(consumerGroup)
+    } catch (e: DomainException) {
+        logger.warn("테스트 컨슈머 그룹 생성 실패: ${e.message}")
+        ResponseEntity.badRequest().build()
+    } catch (e: Exception) {
+        logger.error("테스트 컨슈머 그룹 생성 중 오류 발생", e)
+        ResponseEntity.internalServerError().build()
+    }
+}
 }
