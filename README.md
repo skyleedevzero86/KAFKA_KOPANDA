@@ -155,8 +155,10 @@ curl -X GET http://localhost:8080/api/connections/{connectionId}/topics
 
 ### 📊 **토픽 모니터링**
 
-<img width="1014" height="828" alt="image" src="https://github.com/user-attachments/assets/bec4abce-a8a4-4856-a84c-2232d617a0eb" />
+<img width="1243" height="905" alt="image" src="https://github.com/user-attachments/assets/70a103d2-24ec-4d2f-aaf9-f87e84ac36d3" />
 <img width="1722" height="902" alt="image" src="https://github.com/user-attachments/assets/75307170-7418-49be-ab58-987caa7ac635" />
+<img width="1244" height="909" alt="image" src="https://github.com/user-attachments/assets/16093bda-73bd-4440-bb34-31bf954840a9" />
+
 
 
 ### 💬 **메시지 관리**
