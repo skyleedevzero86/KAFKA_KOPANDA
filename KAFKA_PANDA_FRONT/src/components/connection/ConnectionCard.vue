@@ -60,6 +60,8 @@ const isActive = computed(() =>
 )
 
 const handleClick = () => {
+  console.log('연결 카드 클릭:', props.connection)
+  connectionStore.setCurrentConnection(props.connection)
   emit('select', props.connection)
 }
 

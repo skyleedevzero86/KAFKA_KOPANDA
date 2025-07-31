@@ -1,18 +1,15 @@
 <template>
-  <div class="connection-status">
-    <el-tag
-      :type="statusType"
-      :icon="statusIcon"
-      size="small"
-    >
-      {{ statusText }}
-    </el-tag>
-  </div>
+  <el-tag
+    :type="statusType"
+    size="small"
+    :class="{ 'status-tag': true }"
+  >
+    {{ statusText }}
+  </el-tag>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Connection, Warning, CircleClose, Loading } from '@element-plus/icons-vue'
 import type { ConnectionDto } from '@/types/connection'
 
 interface Props {
@@ -22,21 +19,14 @@ interface Props {
 const props = defineProps<Props>()
 
 const statusType = computed(() => {
-  if (props.connection.lastConnected) {
+  if (props.connection.lastConnected && props.connection.lastConnected !== 'Invalid Date') {
     return 'success'
   }
-  return 'info'
-})
-
-const statusIcon = computed(() => {
-  if (props.connection.lastConnected) {
-    return Connection
-  }
-  return CircleClose
+  return 'danger'
 })
 
 const statusText = computed(() => {
-  if (props.connection.lastConnected) {
+  if (props.connection.lastConnected && props.connection.lastConnected !== 'Invalid Date') {
     return '연결됨'
   }
   return '연결 안됨'
@@ -44,8 +34,7 @@ const statusText = computed(() => {
 </script>
 
 <style scoped>
-.connection-status {
-  display: flex;
-  align-items: center;
+.status-tag {
+  font-weight: 500;
 }
 </style>

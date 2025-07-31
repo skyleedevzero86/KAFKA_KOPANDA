@@ -1,37 +1,55 @@
-import dayjs from 'dayjs'
 
-export function formatDate(date: string | Date): string {
-    return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
-}
-
-export function formatNumber(num: number): string {
-    if (num >= 1000000) {
-        return (num / 1000000).toFixed(1) + 'M'
-    }
-    if (num >= 1000) {
-        return (num / 1000).toFixed(1) + 'K'
-    }
-    return num.toString()
+export function formatNumber(value: number): string {
+  if (value >= 1000000) {
+    return (value / 1000000).toFixed(1) + 'M'
+  } else if (value >= 1000) {
+    return (value / 1000).toFixed(1) + 'K'
+  }
+  return value.toString()
 }
 
 export function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B'
-
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  if (bytes === 0) return '0 B'
+  
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-export function formatDuration(ms: number): string {
-    if (ms < 1000) return ms + 'ms'
-    if (ms < 60000) return (ms / 1000).toFixed(1) + 's'
-    if (ms < 3600000) return (ms / 60000).toFixed(1) + 'm'
-    return (ms / 3600000).toFixed(1) + 'h'
+export function formatDate(dateString: string): string {
+  if (!dateString) return '-'
+  
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return '-'
+    
+    return date.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  } catch (error) {
+    return '-'
+  }
 }
 
-export function formatPercentage(value: number, total: number): string {
-    if (total === 0) return '0%'
-    return ((value / total) * 100).toFixed(1) + '%'
+export function formatOffset(offset: number): string {
+  return formatNumber(offset)
+}
+
+export function formatTime(timestamp: number): string {
+  const date = new Date(timestamp)
+  return date.toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
 }

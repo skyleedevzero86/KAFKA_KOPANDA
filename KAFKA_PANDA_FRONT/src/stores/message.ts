@@ -1,17 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { messageService } from '@/services/messageService'
-import type {
-  MessageDto,
-  SendMessageRequest,
-  MessageSearchCriteria,
-  PaginatedResponse
-} from '@/types/message'
-import type { OffsetType } from '@/types/message'
+import type { MessageDto, SendMessageRequest, MessageSearchCriteria, OffsetType } from '@/types/message'
 
 export const useMessageStore = defineStore('message', () => {
   const messages = ref<MessageDto[]>([])
-  const pagination = ref<PaginatedResponse<MessageDto> | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -23,9 +16,9 @@ export const useMessageStore = defineStore('message', () => {
     offsetType: OffsetType,
     limit: number
   ) {
-    loading.value = true
-    error.value = null
     try {
+      loading.value = true
+      error.value = null
       const response = await messageService.getMessages(
         connectionId,
         topicName,
@@ -35,10 +28,10 @@ export const useMessageStore = defineStore('message', () => {
         limit
       )
       messages.value = response.items
-      pagination.value = response
       return response
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '메시지 목록을 불러오는데 실패했습니다.'
+      error.value = err instanceof Error ? err.message : 'Failed to fetch messages'
+      console.error('Failed to fetch messages:', err)
       throw err
     } finally {
       loading.value = false
@@ -50,12 +43,13 @@ export const useMessageStore = defineStore('message', () => {
     topicName: string,
     request: SendMessageRequest
   ) {
-    loading.value = true
-    error.value = null
     try {
+      loading.value = true
+      error.value = null
       await messageService.sendMessage(connectionId, topicName, request)
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '메시지 전송에 실패했습니다.'
+      error.value = err instanceof Error ? err.message : 'Failed to send message'
+      console.error('Failed to send message:', err)
       throw err
     } finally {
       loading.value = false
@@ -66,13 +60,15 @@ export const useMessageStore = defineStore('message', () => {
     connectionId: string,
     criteria: MessageSearchCriteria
   ) {
-    loading.value = true
-    error.value = null
     try {
-      messages.value = await messageService.searchMessages(connectionId, criteria)
-      return messages.value
+      loading.value = true
+      error.value = null
+      const results = await messageService.searchMessages(connectionId, criteria)
+      messages.value = results
+      return results
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '메시지 검색에 실패했습니다.'
+      error.value = err instanceof Error ? err.message : 'Failed to search messages'
+      console.error('Failed to search messages:', err)
       throw err
     } finally {
       loading.value = false
@@ -81,7 +77,6 @@ export const useMessageStore = defineStore('message', () => {
 
   function clearMessages() {
     messages.value = []
-    pagination.value = null
   }
 
   function clearError() {
@@ -90,7 +85,6 @@ export const useMessageStore = defineStore('message', () => {
 
   return {
     messages,
-    pagination,
     loading,
     error,
     getMessages,

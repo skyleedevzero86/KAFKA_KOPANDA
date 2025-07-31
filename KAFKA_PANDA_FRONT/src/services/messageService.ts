@@ -1,11 +1,5 @@
 import { apiService } from './api'
-import type {
-  MessageDto,
-  SendMessageRequest,
-  MessageSearchCriteria,
-  PaginatedResponse
-} from '@/types/message'
-import type { OffsetType } from '@/types/message'
+import type { MessageDto, SendMessageRequest, MessageSearchCriteria, OffsetType, PaginatedResponse } from '@/types/message'
 
 export class MessageService {
   async getMessages(
@@ -17,14 +11,14 @@ export class MessageService {
     limit: number
   ): Promise<PaginatedResponse<MessageDto>> {
     const params = {
+      connectionId,
+      topicName,
+      partitionNumber,
       offset,
       offsetType,
       limit
     }
-    return apiService.get<PaginatedResponse<MessageDto>>(
-      `/connections/${connectionId}/topics/${topicName}/partitions/${partitionNumber}/messages`,
-      params
-    )
+    return apiService.get<PaginatedResponse<MessageDto>>('/messages', params) 
   }
 
   async sendMessage(
@@ -32,20 +26,16 @@ export class MessageService {
     topicName: string,
     request: SendMessageRequest
   ): Promise<void> {
-    return apiService.post<void>(
-      `/connections/${connectionId}/topics/${topicName}/messages`,
-      request
-    )
+    const url = `/messages?connectionId=${connectionId}&topicName=${topicName}` 
+    return apiService.post<void>(url, request)
   }
 
   async searchMessages(
     connectionId: string,
     criteria: MessageSearchCriteria
   ): Promise<MessageDto[]> {
-    return apiService.post<MessageDto[]>(
-      `/connections/${connectionId}/topics/${criteria.topic}/messages/search`,
-      criteria
-    )
+    const url = `/messages/search?connectionId=${connectionId}`
+    return apiService.post<MessageDto[]>(url, criteria)
   }
 }
 

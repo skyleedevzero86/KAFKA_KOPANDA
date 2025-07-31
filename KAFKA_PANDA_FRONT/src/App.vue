@@ -2,7 +2,7 @@
   <div id="app">
     <el-container class="app-container">
       <el-aside width="250px" class="sidebar">
-        <div class="logo">
+        <div class="logo" @click="goHome">
           <h2>Kafka Kopanda</h2>
         </div>
         <el-menu
@@ -10,13 +10,13 @@
           router
           class="sidebar-menu"
         >
-          <el-menu-item index="/">
-            <el-icon><Monitor /></el-icon>
-            <span>대시보드</span>
-          </el-menu-item>
           <el-menu-item index="/connections">
             <el-icon><Connection /></el-icon>
             <span>연결 관리</span>
+          </el-menu-item>
+          <el-menu-item index="/">
+            <el-icon><Monitor /></el-icon>
+            <span>대시보드</span>
           </el-menu-item>
           <el-menu-item index="/topics">
             <el-icon><Document /></el-icon>
@@ -60,10 +60,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Monitor, Connection, Document, Message, DataAnalysis, TrendCharts, Refresh } from '@element-plus/icons-vue'
 
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 
 const getPageTitle = () => {
@@ -76,6 +77,10 @@ const getPageTitle = () => {
     '/topic-monitoring': '토픽 모니터링'
   }
   return titles[route.path] || 'Kafka Kopanda'
+}
+
+const goHome = () => {
+  router.push('/')
 }
 
 const refreshCurrentPage = () => {
@@ -100,16 +105,55 @@ const refreshCurrentPage = () => {
   padding: 20px;
   text-align: center;
   border-bottom: 1px solid #435266;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.logo:hover {
+  background-color: #435266;
 }
 
 .logo h2 {
   margin: 0;
   color: #409EFF;
+  font-size: 1.5rem;
+  font-weight: 600;
 }
 
 .sidebar-menu {
   border-right: none;
   background-color: transparent;
+}
+
+/* 메뉴 아이템 스타일 개선 */
+.sidebar-menu :deep(.el-menu-item) {
+  color: #c0c4cc;
+  font-size: 14px;
+  font-weight: 500;
+  height: 50px;
+  line-height: 50px;
+  transition: all 0.3s ease;
+}
+
+.sidebar-menu :deep(.el-menu-item:hover) {
+  color: #ffffff;
+  background-color: #435266;
+}
+
+.sidebar-menu :deep(.el-menu-item.is-active) {
+  color: #409EFF;
+  background-color: #263445;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.sidebar-menu :deep(.el-menu-item .el-icon) {
+  margin-right: 10px;
+  font-size: 16px;
+}
+
+.sidebar-menu :deep(.el-menu-item.is-active .el-icon) {
+  color: #409EFF;
 }
 
 .header {
@@ -128,6 +172,7 @@ const refreshCurrentPage = () => {
 .header-content h3 {
   margin: 0;
   color: #303133;
+  font-weight: 600;
 }
 
 .main-content {

@@ -27,6 +27,11 @@ const props = withDefaults(defineProps<Props>(), {
   options: () => ({
     responsive: true,
     maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top'
+      }
+    },
     scales: {
       y: {
         beginAtZero: true
@@ -53,7 +58,8 @@ onMounted(() => {
 
 watch(() => props.data, (newData) => {
   if (chart) {
-    chart.data = newData
+   
+    chart.data = { ...newData };
     chart.update()
   }
 }, { deep: true })

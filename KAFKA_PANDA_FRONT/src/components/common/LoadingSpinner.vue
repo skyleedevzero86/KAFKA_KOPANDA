@@ -1,6 +1,6 @@
 <template>
   <div class="loading-spinner">
-    <el-loading-component />
+    <el-loading-spinner />
     <p>{{ message }}</p>
   </div>
 </template>
@@ -26,6 +26,6 @@ withDefaults(defineProps<Props>(), {
 
 .loading-spinner p {
   margin-top: 16px;
-  color: #909399;
+  color: #606266;
 }
 </style>
