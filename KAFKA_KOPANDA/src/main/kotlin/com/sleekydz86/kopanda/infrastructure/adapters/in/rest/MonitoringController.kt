@@ -1174,4 +1174,70 @@ class MonitoringController(
 
         return ResponseEntity.ok(dashboardData)
     }
+
+    @GetMapping("/connections/{connectionId}/topic-metrics")
+    @Operation(
+        summary = "토픽 메트릭 조회",
+        description = "지정된 Kafka 연결의 토픽 메트릭을 조회합니다. 총 토픽 수, 내부 토픽 수, 사용자 토픽 수, 파티션 정보 등을 포함합니다."
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "토픽 메트릭 조회 성공",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(
+                            implementation = TopicMetricsDto::class,
+                            description = "토픽 메트릭 정보"
+                        )
+                    )
+                ]
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "연결을 찾을 수 없음",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(
+                            implementation = ErrorResponse::class,
+                            description = "오류 응답"
+                        )
+                    )
+                ]
+            ),
+            ApiResponse(
+                responseCode = "500",
+                description = "서버 내부 오류",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(
+                            implementation = ErrorResponse::class,
+                            description = "오류 응답"
+                        )
+                    )
+                ]
+            )
+        ]
+    )
+    suspend fun getTopicMetrics(
+        @Parameter(
+            description = "조회할 Kafka 연결의 고유 식별자",
+            example = "conn_001",
+            schema = Schema(
+                type = "string",
+                pattern = "^[a-zA-Z0-9_-]+$",
+                minLength = 1,
+                maxLength = 50
+            )
+        )
+        @PathVariable connectionId: String
+    ): ResponseEntity<TopicMetricsDto> {
+        val connection = connectionManagementUseCase.getConnection(connectionId)
+        val topicMetrics = kafkaManagementUseCase.getTopicMetrics(connectionId)
+        return ResponseEntity.ok(topicMetrics)
+    }
 }
