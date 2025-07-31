@@ -162,6 +162,8 @@ curl -X GET http://localhost:8080/api/connections/{connectionId}/topics
 ### 💬 **메시지 관리**
 
 <img width="1132" height="543" alt="image" src="https://github.com/user-attachments/assets/21d26beb-49ac-423d-bb95-72dfc37b603c" />
+<img width="1109" height="646" alt="image" src="https://github.com/user-attachments/assets/dc14552a-6f32-4a4c-a684-4ffa8c391a79" />
+
 
 ### 📈 **메트릭 대시보드**
 
