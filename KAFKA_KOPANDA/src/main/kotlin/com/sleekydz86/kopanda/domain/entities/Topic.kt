@@ -57,7 +57,11 @@ class Topic(
 
     fun getTotalMessageCount(): Long = partitions.sumOf { it.messageCount }
 
-    fun isHealthy(): Boolean = partitions.all { it.isHealthy() }
+    fun isHealthy(): Boolean {
+        return partitions.isNotEmpty() && partitions.any { partition ->
+            partition.leader != null && partition.inSyncReplicas.isNotEmpty()
+        }
+    }
 
     fun getUnhealthyPartitions(): List<Partition> = partitions.filter { !it.isHealthy() }
 

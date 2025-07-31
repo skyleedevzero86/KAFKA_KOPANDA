@@ -8,7 +8,8 @@ spring:
     name: kafka-kopanda
 
   datasource:
-    url: jdbc:h2:mem:kopanda;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL;DATABASE_TO_UPPER=false;INIT=CREATE SCHEMA IF NOT EXISTS PUBLIC
+    # 파일 기반 H2 DB로 변경하여 데이터 유지
+    url: jdbc:h2:file:./data/kopanda;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL;DATABASE_TO_UPPER=false;INIT=CREATE SCHEMA IF NOT EXISTS PUBLIC
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -29,7 +30,8 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # create-drop에서 update로 변경하여 데이터 유지
+      ddl-auto: update
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
         implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
@@ -48,7 +50,7 @@ spring:
         temp:
           use_jdbc_metadata_defaults: false
         hbm2ddl:
-          auto: create-drop
+          auto: update
         packages_to_scan: com.sleekydz86.kopanda.infrastructure.persistence.entities
     defer-datasource-initialization: false
 

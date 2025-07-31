@@ -23,6 +23,7 @@ interface KafkaManagementUseCase {
     suspend fun sendMessage(connectionId: String, topicName: String, request: SendMessageRequest)
     suspend fun searchMessages(connectionId: String, criteria: MessageSearchCriteria): List<MessageDto>
     suspend fun getConsumerGroups(connectionId: String): List<ConsumerGroupDto>
+    suspend fun createTestConsumerGroup(connectionId: String, topicName: String): ConsumerGroupDto
     suspend fun getMetrics(connectionId: String): KafkaMetricsDto
 
     suspend fun getDetailedMetrics(connectionId: String): DetailedMetricsDto
