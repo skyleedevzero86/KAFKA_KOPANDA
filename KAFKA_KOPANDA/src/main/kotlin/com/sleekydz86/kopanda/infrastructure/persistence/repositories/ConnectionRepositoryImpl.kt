@@ -2,7 +2,7 @@ package com.sleekydz86.kopanda.infrastructure.persistence.repositories
 
 import com.sleekydz86.kopanda.application.ports.out.ConnectionRepository
 import com.sleekydz86.kopanda.domain.entities.Connection
-import com.sleekydz86.kopanda.domain.valueobjects.ConnectionId
+import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 import com.sleekydz86.kopanda.infrastructure.persistence.entities.ConnectionEntity
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional

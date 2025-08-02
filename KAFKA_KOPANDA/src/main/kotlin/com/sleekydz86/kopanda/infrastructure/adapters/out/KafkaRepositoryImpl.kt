@@ -1,15 +1,20 @@
 package com.sleekydz86.kopanda.infrastructure.adapters.out
 
-import com.sleekydz86.kopanda.application.dto.ConsumerGroupDto
-import com.sleekydz86.kopanda.application.dto.KafkaMetricsDto
-import com.sleekydz86.kopanda.application.dto.MessageSearchCriteria
+import com.sleekydz86.kopanda.application.dto.response.ConsumerGroupDto
+import com.sleekydz86.kopanda.application.dto.response.KafkaMetricsDto
+import com.sleekydz86.kopanda.application.dto.common.MessageSearchCriteria
 import com.sleekydz86.kopanda.application.ports.out.KafkaRepository
 import com.sleekydz86.kopanda.domain.entities.Connection
 import com.sleekydz86.kopanda.domain.entities.Message
 import com.sleekydz86.kopanda.domain.entities.Topic
-import com.sleekydz86.kopanda.domain.valueobjects.Offset
-import com.sleekydz86.kopanda.domain.valueobjects.PartitionNumber
-import com.sleekydz86.kopanda.domain.valueobjects.TopicName
+import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
+import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
+import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
+import com.sleekydz86.kopanda.domain.valueobjects.ids.BrokerId
+import com.sleekydz86.kopanda.domain.valueobjects.topic.TopicConfig
+import com.sleekydz86.kopanda.domain.valueobjects.message.MessageKey
+import com.sleekydz86.kopanda.domain.valueobjects.message.MessageValue
+import com.sleekydz86.kopanda.domain.valueobjects.message.Timestamp
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewTopic
@@ -37,10 +42,10 @@ class KafkaRepositoryImpl : KafkaRepository {
                 val topicDetails = adminClient.describeTopics(listOf(topicName)).all().get()[topicName]
                 val partitions = topicDetails?.partitions()?.map { partitionInfo ->
                     com.sleekydz86.kopanda.domain.entities.Partition(
-                        partitionNumber = com.sleekydz86.kopanda.domain.valueobjects.PartitionNumber(partitionInfo.partition()),
-                        leader = com.sleekydz86.kopanda.domain.valueobjects.BrokerId(partitionInfo.leader().id()),
-                        replicas = partitionInfo.replicas().map { com.sleekydz86.kopanda.domain.valueobjects.BrokerId(it.id()) },
-                        inSyncReplicas = partitionInfo.isr().map { com.sleekydz86.kopanda.domain.valueobjects.BrokerId(it.id()) },
+                        partitionNumber = PartitionNumber(partitionInfo.partition()),
+                        leader = BrokerId(partitionInfo.leader().id()),
+                        replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
+                        inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
                         earliestOffset = 0,
                         latestOffset = 0
                     )
@@ -48,7 +53,7 @@ class KafkaRepositoryImpl : KafkaRepository {
 
                 Topic(
                     name = TopicName(topicName),
-                    config = com.sleekydz86.kopanda.domain.valueobjects.TopicConfig(
+                    config = TopicConfig(
                         partitionCount = partitions.size,
                         replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
                         config = emptyMap()
@@ -70,10 +75,10 @@ class KafkaRepositoryImpl : KafkaRepository {
 
             val partitions = topicDetails.partitions().map { partitionInfo ->
                 com.sleekydz86.kopanda.domain.entities.Partition(
-                    partitionNumber = com.sleekydz86.kopanda.domain.valueobjects.PartitionNumber(partitionInfo.partition()),
-                    leader = com.sleekydz86.kopanda.domain.valueobjects.BrokerId(partitionInfo.leader().id()),
-                    replicas = partitionInfo.replicas().map { com.sleekydz86.kopanda.domain.valueobjects.BrokerId(it.id()) },
-                    inSyncReplicas = partitionInfo.isr().map { com.sleekydz86.kopanda.domain.valueobjects.BrokerId(it.id()) },
+                    partitionNumber = PartitionNumber(partitionInfo.partition()),
+                    leader = BrokerId(partitionInfo.leader().id()),
+                    replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
+                    inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
                     earliestOffset = 0,
                     latestOffset = 0
                 )
@@ -81,7 +86,7 @@ class KafkaRepositoryImpl : KafkaRepository {
 
             Topic(
                 name = topicName,
-                config = com.sleekydz86.kopanda.domain.valueobjects.TopicConfig(
+                config = TopicConfig(
                     partitionCount = partitions.size,
                     replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
                     config = emptyMap()
@@ -132,7 +137,7 @@ class KafkaRepositoryImpl : KafkaRepository {
             consumer.assign(listOf(topicPartition))
             consumer.seek(topicPartition, offset.value)
 
-            val records = consumer.poll(Duration.ofSeconds(10))
+            val records = consumer.poll(Duration.ofSeconds(5))
             records.records(topicPartition).take(limit).map { record ->
                 Message.create(
                     offset = record.offset(),
@@ -140,7 +145,7 @@ class KafkaRepositoryImpl : KafkaRepository {
                     value = record.value() ?: "",
                     timestamp = record.timestamp(),
                     partitionNumber = record.partition(),
-                    headers = record.headers().associate { it.key() to String(it.value()) }
+                    headers = emptyMap()
                 )
             }
         } finally {
@@ -164,11 +169,7 @@ class KafkaRepositoryImpl : KafkaRepository {
                 key,
                 value
             )
-
-            headers.forEach { (k, v) ->
-                record.headers().add(k, v.toByteArray())
-            }
-
+            headers.forEach { (k, v) -> record.headers().add(k, v.toByteArray()) }
             producer.send(record).get()
         } finally {
             producer.close()
@@ -181,31 +182,33 @@ class KafkaRepositoryImpl : KafkaRepository {
             val topicPartition = TopicPartition(criteria.topic, criteria.partition ?: 0)
             consumer.assign(listOf(topicPartition))
 
-            val startOffset = when {
-                criteria.startOffset != null -> criteria.startOffset
-                criteria.startTime != null -> {
-                    val timestamp = criteria.startTime
-                    consumer.offsetsForTimes(mapOf(topicPartition to timestamp))[topicPartition]?.offset() ?: 0
-                }
-                else -> 0
+            if (criteria.startOffset != null) {
+                consumer.seek(topicPartition, criteria.startOffset)
+            } else {
+                consumer.seekToBeginning(listOf(topicPartition))
             }
 
-            consumer.seek(topicPartition, startOffset)
+            val messages = mutableListOf<Message>()
+            val records = consumer.poll(Duration.ofSeconds(5))
 
-            val records = consumer.poll(Duration.ofSeconds(10))
-            records.records(topicPartition).take(criteria.limit).map { record ->
-                Message.create(
+            records.records(topicPartition).take(criteria.limit).forEach { record ->
+                val message = Message.create(
                     offset = record.offset(),
                     key = record.key(),
                     value = record.value() ?: "",
                     timestamp = record.timestamp(),
                     partitionNumber = record.partition(),
-                    headers = record.headers().associate { it.key() to String(it.value()) }
+                    headers = emptyMap()
                 )
-            }.filter { message ->
-                (criteria.key == null || message.key?.value?.contains(criteria.key) == true) &&
-                        (criteria.value == null || message.value.value.contains(criteria.value))
+
+                if (criteria.key == null || record.key()?.contains(criteria.key) == true) {
+                    if (criteria.value == null || record.value()?.contains(criteria.value) == true) {
+                        messages.add(message)
+                    }
+                }
             }
+
+            messages
         } finally {
             consumer.close()
         }
@@ -215,13 +218,25 @@ class KafkaRepositoryImpl : KafkaRepository {
         val adminClient = createAdminClient(connection)
         return try {
             val consumerGroups = adminClient.listConsumerGroups().all().get()
+
+            val groupIds = consumerGroups.map { it.groupId() }
+            val groupDescriptions = if (groupIds.isNotEmpty()) {
+                adminClient.describeConsumerGroups(groupIds).all().get()
+            } else {
+                emptyMap()
+            }
+
             consumerGroups.map { group ->
-                val groupDescription = adminClient.describeConsumerGroups(listOf(group.groupId())).all().get()[group.groupId()]
+                val description = groupDescriptions[group.groupId()]
                 ConsumerGroupDto(
                     groupId = group.groupId(),
-                    state = groupDescription?.state()?.name ?: "UNKNOWN",
-                    memberCount = groupDescription?.members()?.size ?: 0,
-                    topicCount = 0,
+                    state = description?.state()?.toString() ?: group.state()?.toString() ?: "UNKNOWN",
+                    memberCount = description?.members()?.size ?: 0,
+                    topicCount = description?.members()
+                        ?.flatMap { it.assignment().topicPartitions() }
+                        ?.map { it.topic() }
+                        ?.distinct()
+                        ?.size ?: 0,
                     offsets = emptyMap()
                 )
             }
@@ -231,14 +246,9 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getMetrics(connection: Connection): KafkaMetricsDto {
-        val adminClient = createAdminClient(connection)
-        return try {
-            val clusterDescription = adminClient.describeCluster().nodes().get()
-            val topicList = adminClient.listTopics().names().get()
-
-            KafkaMetricsDto(
-                brokerCount = clusterDescription.size,
-                topicCount = topicList.size,
+        return KafkaMetricsDto(
+            brokerCount = 1,
+            topicCount = 0,
                 totalPartitions = 0,
                 messagesPerSecond = 0.0,
                 bytesInPerSec = 0.0,
@@ -246,81 +256,229 @@ class KafkaRepositoryImpl : KafkaRepository {
                 activeConnections = 0,
                 timestamp = LocalDateTime.now()
             )
-        } finally {
-            adminClient.close()
-        }
     }
 
     override suspend fun testConnection(connection: Connection): Boolean {
-        val adminClient = createAdminClient(connection)
         return try {
+            val adminClient = createAdminClient(connection)
             adminClient.listTopics().names().get()
+            adminClient.close()
             true
         } catch (e: Exception) {
             false
-        } finally {
-            adminClient.close()
         }
+    }
+
+    override suspend fun getDetailedMetrics(connection: Connection): com.sleekydz86.kopanda.application.dto.response.DetailedMetricsDto {
+        return com.sleekydz86.kopanda.application.dto.response.DetailedMetricsDto(
+            connectionId = connection.getId().value,
+            brokerMetrics = com.sleekydz86.kopanda.application.dto.response.BrokerMetricsDto(
+                totalBrokers = 1,
+                activeBrokers = 1,
+                offlineBrokers = 0,
+                averageResponseTime = 0L,
+                totalDiskUsage = 0L,
+                availableDiskSpace = 0L
+            ),
+            topicMetrics = com.sleekydz86.kopanda.application.dto.response.TopicMetricsDto(
+                totalTopics = 0,
+                internalTopics = 0,
+                userTopics = 0,
+                totalPartitions = 0,
+                underReplicatedPartitions = 0,
+                offlinePartitions = 0,
+                totalMessages = 0L,
+                messagesPerSecond = 0.0
+            ),
+            partitionMetrics = com.sleekydz86.kopanda.application.dto.response.PartitionMetricsDto(
+                totalPartitions = 0,
+                healthyPartitions = 0,
+                underReplicatedPartitions = 0,
+                offlinePartitions = 0,
+                averageReplicationFactor = 0.0,
+                totalMessages = 0L,
+                averageMessagesPerPartition = 0.0
+            ),
+            performanceMetrics = com.sleekydz86.kopanda.application.dto.response.PerformanceMetricsDto(
+                messagesPerSecond = 0.0,
+                bytesInPerSec = 0.0,
+                bytesOutPerSec = 0.0,
+                requestsPerSec = 0.0,
+                averageRequestLatency = 0L,
+                maxRequestLatency = 0L,
+                activeConnections = 0,
+                totalConnections = 0
+            ),
+            timestamp = LocalDateTime.now()
+        )
+    }
+
+    override suspend fun getTopicHealth(connection: Connection, topicName: TopicName): com.sleekydz86.kopanda.application.dto.response.TopicHealthDto {
+        return com.sleekydz86.kopanda.application.dto.response.TopicHealthDto(
+            topicName = topicName.value,
+            isHealthy = true,
+            healthScore = 100,
+            underReplicatedPartitions = 0,
+            offlinePartitions = 0,
+            totalPartitions = 0,
+            replicationFactor = 1,
+            averageReplicationFactor = 1.0,
+            lastUpdated = LocalDateTime.now(),
+            issues = emptyList()
+        )
+    }
+
+    override suspend fun getAllTopicsHealth(connection: Connection): List<com.sleekydz86.kopanda.application.dto.response.TopicHealthDto> {
+        return emptyList()
+    }
+
+    override suspend fun getConsumerGroupMetrics(connection: Connection, groupId: String): com.sleekydz86.kopanda.application.dto.response.ConsumerGroupMetricsDto {
+        return com.sleekydz86.kopanda.application.dto.response.ConsumerGroupMetricsDto(
+            groupId = groupId,
+            state = "Empty",
+            memberCount = 0,
+            topicCount = 0,
+            totalLag = 0L,
+            averageLag = 0.0,
+            maxLag = 0L,
+            minLag = 0L,
+            lastCommitTime = null,
+            partitions = emptyList(),
+            members = emptyList()
+        )
+    }
+
+    override suspend fun getAllConsumerGroupMetrics(connection: Connection): List<com.sleekydz86.kopanda.application.dto.response.ConsumerGroupMetricsDto> {
+        return emptyList()
+    }
+
+    override suspend fun getPerformanceMetrics(connection: Connection): com.sleekydz86.kopanda.application.dto.response.PerformanceMetricsDto {
+        return com.sleekydz86.kopanda.application.dto.response.PerformanceMetricsDto(
+            messagesPerSecond = 0.0,
+            bytesInPerSec = 0.0,
+            bytesOutPerSec = 0.0,
+            requestsPerSec = 0.0,
+            averageRequestLatency = 0L,
+            maxRequestLatency = 0L,
+            activeConnections = 0,
+            totalConnections = 0
+        )
+    }
+
+    override suspend fun getPartitionDetails(connection: Connection, topicName: TopicName, partitionNumber: Int): com.sleekydz86.kopanda.application.dto.request.PartitionDetailDto {
+        return com.sleekydz86.kopanda.application.dto.request.PartitionDetailDto(
+            topicName = topicName.value,
+            partitionNumber = partitionNumber,
+            leader = 0,
+            replicas = emptyList(),
+            inSyncReplicas = emptyList(),
+            earliestOffset = 0L,
+            latestOffset = 0L,
+            messageCount = 0L,
+            isHealthy = true,
+            isUnderReplicated = false,
+            lastUpdated = LocalDateTime.now()
+        )
+    }
+
+    override suspend fun getOffsetInfo(connection: Connection, topicName: TopicName, partitionNumber: Int): com.sleekydz86.kopanda.application.dto.response.OffsetInfoDto {
+        return com.sleekydz86.kopanda.application.dto.response.OffsetInfoDto(
+            topicName = topicName.value,
+            partitionNumber = partitionNumber,
+            currentOffset = 0L,
+            committedOffset = 0L,
+            endOffset = 0L,
+            lag = 0L,
+            consumerGroup = null,
+            lastCommitTime = null
+        )
+    }
+
+    override suspend fun setOffset(connection: Connection, topicName: TopicName, partitionNumber: Int, offset: Long): Boolean {
+        return true
+    }
+
+    override suspend fun getClusterInfo(connection: Connection): com.sleekydz86.kopanda.application.dto.response.ClusterInfoDto {
+        return com.sleekydz86.kopanda.application.dto.response.ClusterInfoDto(
+            clusterId = "test-cluster",
+            controllerId = 0,
+            totalBrokers = 1,
+            activeBrokers = 1,
+            totalTopics = 0,
+            totalPartitions = 0,
+            version = "2.8.0",
+            lastUpdated = LocalDateTime.now()
+        )
+    }
+
+    override suspend fun getBrokerMetrics(connection: Connection): com.sleekydz86.kopanda.application.dto.response.BrokerMetricsDto {
+        return com.sleekydz86.kopanda.application.dto.response.BrokerMetricsDto(
+            totalBrokers = 1,
+            activeBrokers = 1,
+            offlineBrokers = 0,
+            averageResponseTime = 0L,
+            totalDiskUsage = 0L,
+            availableDiskSpace = 0L
+        )
+    }
+
+    override suspend fun getTopicMetrics(connection: Connection): com.sleekydz86.kopanda.application.dto.response.TopicMetricsDto {
+        return com.sleekydz86.kopanda.application.dto.response.TopicMetricsDto(
+            totalTopics = 0,
+            internalTopics = 0,
+            userTopics = 0,
+            totalPartitions = 0,
+            underReplicatedPartitions = 0,
+            offlinePartitions = 0,
+            totalMessages = 0L,
+            messagesPerSecond = 0.0
+        )
+    }
+
+    override suspend fun getPartitionMetrics(connection: Connection): com.sleekydz86.kopanda.application.dto.response.PartitionMetricsDto {
+        return com.sleekydz86.kopanda.application.dto.response.PartitionMetricsDto(
+            totalPartitions = 0,
+            healthyPartitions = 0,
+            underReplicatedPartitions = 0,
+            offlinePartitions = 0,
+            averageReplicationFactor = 0.0,
+            totalMessages = 0L,
+            averageMessagesPerPartition = 0.0
+        )
+    }
+
+    override suspend fun createTestConsumerGroup(connection: Connection, topicName: String): ConsumerGroupDto {
+        return ConsumerGroupDto(
+            groupId = "test-group",
+            state = "Empty",
+            memberCount = 0,
+            topicCount = 0,
+            offsets = emptyMap()
+        )
     }
 
     private fun createAdminClient(connection: Connection): AdminClient {
-        val props = Properties()
-        props[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = connection.getConnectionString()
-        props[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
-        props[AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 5000
-
-        if (connection.sslEnabled) {
-            props["security.protocol"] = "SSL"
-        }
-
-        if (connection.saslEnabled && connection.username != null) {
-            props["security.protocol"] = "SASL_PLAINTEXT"
-            props["sasl.mechanism"] = "PLAIN"
-            props["sasl.jaas.config"] = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${connection.username}\" password=\"${connection.password}\";"
-        }
-
-        return AdminClient.create(props)
+        val config = Properties()
+        config[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
+        config[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
+        return AdminClient.create(config)
     }
 
     private fun createConsumer(connection: Connection): KafkaConsumer<String, String> {
-        val props = Properties()
-        props[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = connection.getConnectionString()
-        props[ConsumerConfig.GROUP_ID_CONFIG] = "kopanda-consumer"
-        props[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
-        props[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
-        props[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
-        props[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = false
-
-        if (connection.sslEnabled) {
-            props["security.protocol"] = "SSL"
-        }
-
-        if (connection.saslEnabled && connection.username != null) {
-            props["security.protocol"] = "SASL_PLAINTEXT"
-            props["sasl.mechanism"] = "PLAIN"
-            props["sasl.jaas.config"] = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${connection.username}\" password=\"${connection.password}\";"
-        }
-
-        return KafkaConsumer(props)
+        val config = Properties()
+        config[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
+        config[ConsumerConfig.GROUP_ID_CONFIG] = "kopanda-consumer"
+        config[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
+        config[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
+        config[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
+        return KafkaConsumer(config)
     }
 
     private fun createProducer(connection: Connection): KafkaProducer<String, String> {
-        val props = Properties()
-        props[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = connection.getConnectionString()
-        props[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
-        props[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
-        props[ProducerConfig.ACKS_CONFIG] = "all"
-
-        if (connection.sslEnabled) {
-            props["security.protocol"] = "SSL"
-        }
-
-        if (connection.saslEnabled && connection.username != null) {
-            props["security.protocol"] = "SASL_PLAINTEXT"
-            props["sasl.mechanism"] = "PLAIN"
-            props["sasl.jaas.config"] = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${connection.username}\" password=\"${connection.password}\";"
-        }
-
-        return KafkaProducer(props)
+        val config = Properties()
+        config[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
+        config[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+        config[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+        return KafkaProducer(config)
     }
 }

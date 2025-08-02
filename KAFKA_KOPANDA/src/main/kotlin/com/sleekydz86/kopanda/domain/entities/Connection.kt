@@ -1,12 +1,13 @@
 package com.sleekydz86.kopanda.domain.entities
 
-import com.sleekydz86.kopanda.domain.valueobjects.ConnectionName
-import com.sleekydz86.kopanda.domain.valueobjects.Host
-import com.sleekydz86.kopanda.domain.valueobjects.Port
-import com.sleekydz86.kopanda.domain.valueobjects.ConnectionId
+import com.sleekydz86.kopanda.domain.valueobjects.names.ConnectionName
+import com.sleekydz86.kopanda.domain.valueobjects.network.Host
+import com.sleekydz86.kopanda.domain.valueobjects.network.Port
+import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 import com.sleekydz86.kopanda.domain.events.ConnectionCreatedEvent
 import com.sleekydz86.kopanda.domain.events.ConnectionUpdatedEvent
 import com.sleekydz86.kopanda.domain.events.ConnectionDeletedEvent
+import com.sleekydz86.kopanda.domain.events.ConnectionStatusChangedEvent
 import com.sleekydz86.kopanda.shared.domain.AggregateRoot
 import java.time.LocalDateTime
 
@@ -21,7 +22,8 @@ class Connection(
     val createdAt: LocalDateTime = LocalDateTime.now(),
     var updatedAt: LocalDateTime = LocalDateTime.now(),
     var lastConnected: LocalDateTime? = null,
-    var isDeleted: Boolean = false
+    var isDeleted: Boolean = false,
+    var status: ConnectionStatus = ConnectionStatus.DISCONNECTED
 ) : AggregateRoot() {
 
     private var id: ConnectionId = ConnectionId.generate()
@@ -54,11 +56,37 @@ class Connection(
     }
 
     fun markAsConnected() {
+        val previousStatus = status
         lastConnected = LocalDateTime.now()
         updatedAt = LocalDateTime.now()
+        status = ConnectionStatus.CONNECTED
+
+        if (previousStatus != ConnectionStatus.CONNECTED) {
+            addDomainEvent(ConnectionStatusChangedEvent(this, previousStatus, status))
+        }
     }
 
-    fun isConnected(): Boolean = lastConnected != null
+    fun markAsDisconnected() {
+        val previousStatus = status
+        updatedAt = LocalDateTime.now()
+        status = ConnectionStatus.DISCONNECTED
+
+        if (previousStatus != ConnectionStatus.DISCONNECTED) {
+            addDomainEvent(ConnectionStatusChangedEvent(this, previousStatus, status))
+        }
+    }
+
+    fun markAsError(errorMessage: String? = null) {
+        val previousStatus = status
+        updatedAt = LocalDateTime.now()
+        status = ConnectionStatus.ERROR
+
+        if (previousStatus != ConnectionStatus.ERROR) {
+            addDomainEvent(ConnectionStatusChangedEvent(this, previousStatus, status, errorMessage))
+        }
+    }
+
+    fun isConnected(): Boolean = status == ConnectionStatus.CONNECTED
 
     fun getConnectionString(): String = "${host.value}:${port.value}"
 
@@ -93,5 +121,12 @@ class Connection(
             connection.addDomainEvent(ConnectionCreatedEvent(connection))
             return connection
         }
+    }
+
+    enum class ConnectionStatus {
+        CONNECTED,
+        DISCONNECTED,
+        CONNECTING,
+        ERROR
     }
 }
