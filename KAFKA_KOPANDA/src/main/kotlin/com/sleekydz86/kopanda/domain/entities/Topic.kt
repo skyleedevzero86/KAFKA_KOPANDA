@@ -4,6 +4,9 @@ import com.sleekydz86.kopanda.domain.events.TopicCreatedEvent
 import com.sleekydz86.kopanda.domain.events.TopicDeletedEvent
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.TopicConfig
+import com.sleekydz86.kopanda.domain.valueobjects.topic.TopicConfig
+import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
+import com.sleekydz86.kopanda.domain.valueobjects.*
 import com.sleekydz86.kopanda.shared.domain.AggregateRoot
 import jakarta.persistence.*
 import java.time.LocalDateTime
@@ -56,7 +59,11 @@ class Topic(
 
     fun getTotalMessageCount(): Long = partitions.sumOf { it.messageCount }
 
-    fun isHealthy(): Boolean = partitions.all { it.isHealthy() }
+    fun isHealthy(): Boolean {
+        return partitions.isNotEmpty() && partitions.any { partition ->
+            partition.leader != null && partition.inSyncReplicas.isNotEmpty()
+        }
+    }
 
     fun getUnhealthyPartitions(): List<Partition> = partitions.filter { !it.isHealthy() }
 
