@@ -1,10 +1,13 @@
 package com.sleekydz86.kopanda.infrastructure.persistence.entities
 
+import com.sleekydz86.kopanda.application.dto.enums.ActivityType
 import com.sleekydz86.kopanda.domain.entities.Activity
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ActivityId
 import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityMessage
 import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityTitle
+
 import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType
+
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
@@ -15,8 +18,9 @@ class ActivityEntity(
     @Column(name = "activity_id", nullable = false, length = 36)
     val id: String,
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "activity_type", nullable = false, length = 50)
-    val type: String,
+    val type: ActivityType,
 
     @Column(name = "title", nullable = false, length = 200)
     val title: String,
@@ -35,7 +39,7 @@ class ActivityEntity(
 ) {
     constructor() : this(
         id = "",
-        type = "",
+        type = ActivityType.ERROR_OCCURRED,
         title = "",
         message = "",
         connectionId = null,
@@ -45,7 +49,7 @@ class ActivityEntity(
 
     fun toDomain(): Activity {
         val activity = Activity(
-            type = ActivityType(type),
+            type = this.type,
             title = ActivityTitle(title),
             message = ActivityMessage(message),
             connectionId = connectionId,
@@ -61,7 +65,7 @@ class ActivityEntity(
         fun fromDomain(activity: Activity): ActivityEntity {
             return ActivityEntity(
                 id = activity.getId().value,
-                type = activity.type.value,
+                type = activity.type,
                 title = activity.title.value,
                 message = activity.message.value,
                 connectionId = activity.connectionId,

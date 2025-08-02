@@ -2,6 +2,8 @@ package com.sleekydz86.kopanda.domain.entities
 
 import com.sleekydz86.kopanda.domain.events.TopicCreatedEvent
 import com.sleekydz86.kopanda.domain.events.TopicDeletedEvent
+import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
+import com.sleekydz86.kopanda.domain.valueobjects.topic.TopicConfig
 import com.sleekydz86.kopanda.domain.valueobjects.topic.TopicConfig
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.*

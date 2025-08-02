@@ -3,6 +3,8 @@ package com.sleekydz86.kopanda.domain.entities
 import com.sleekydz86.kopanda.domain.valueobjects.message.MessageKey
 import com.sleekydz86.kopanda.domain.valueobjects.message.MessageValue
 import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
+import com.sleekydz86.kopanda.domain.valueobjects.message.Timestamp
+import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
 import com.sleekydz86.kopanda.domain.valueobjects.message.Timestamp
 import jakarta.persistence.*

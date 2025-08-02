@@ -7,7 +7,9 @@ import com.sleekydz86.kopanda.application.ports.out.ActivityRepository
 import com.sleekydz86.kopanda.domain.entities.Activity
 import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityMessage
 import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityTitle
+
 import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType as DomainActivityType
+
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -42,7 +44,11 @@ class ActivityService(
 
     override suspend fun logError(message: String, connectionId: String?) {
         val activity = Activity(
+
+            type = ActivityType.ERROR_OCCURRED,
+
             type = DomainActivityType("ERROR_OCCURRED"),
+
             title = ActivityTitle("오류 발생"),
             message = ActivityMessage(message),
             connectionId = connectionId
@@ -53,6 +59,9 @@ class ActivityService(
     private fun Activity.toActivityDto(): ActivityDto {
         return ActivityDto(
             id = this.getId().value,
+
+            type = this.type,
+
             type = when (this.type.value) {
                 "CONNECTION_CREATED" -> ActivityType.CONNECTION_CREATED
                 "TOPIC_CREATED" -> ActivityType.TOPIC_CREATED
@@ -60,22 +69,26 @@ class ActivityService(
                 "ERROR_OCCURRED" -> ActivityType.ERROR_OCCURRED
                 else -> ActivityType.ERROR_OCCURRED
             },
+
             title = this.title.value,
             message = this.message.value,
             connectionId = this.connectionId,
             topicName = this.topicName,
             timestamp = this.timestamp,
-            icon = getIconForType(this.type.value)
+            icon = getIconForType(this.type)
         )
     }
 
-    private fun getIconForType(type: String): String {
+    private fun getIconForType(type: ActivityType): String {
         return when (type) {
-            "CONNECTION_CREATED" -> "🔗"
-            "TOPIC_CREATED" -> "��"
-            "CONNECTION_OFFLINE" -> "⚠️"
-            "ERROR_OCCURRED" -> "❌"
-            else -> "ℹ️"
+            ActivityType.CONNECTION_CREATED -> "🔗"
+            ActivityType.TOPIC_CREATED -> "📝"
+            ActivityType.CONNECTION_OFFLINE -> "⚠️"
+            ActivityType.ERROR_OCCURRED -> "❌"
+            ActivityType.CONNECTION_UPDATED -> "🔄"
+            ActivityType.CONNECTION_DELETED -> "🗑️"
+            ActivityType.MESSAGE_SENT -> "📤"
+            ActivityType.TOPIC_DELETED -> "️"
         }
     }
 }

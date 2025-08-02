@@ -4,11 +4,13 @@ import com.sleekydz86.kopanda.domain.entities.Activity
 import com.sleekydz86.kopanda.application.ports.out.ActivityRepository
 import com.sleekydz86.kopanda.infrastructure.persistence.entities.ActivityEntity
 import com.sleekydz86.kopanda.infrastructure.persistence.repositories.ActivityJpaRepository
+import org.springframework.context.annotation.Primary
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
 
 @Repository
+@Primary
 class ActivityRepositoryAdapter(
     private val activityJpaRepository: ActivityJpaRepository
 ) : ActivityRepository {

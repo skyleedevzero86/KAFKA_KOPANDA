@@ -3,9 +3,11 @@ package com.sleekydz86.kopanda.application.ports.out
 import com.sleekydz86.kopanda.domain.entities.Connection
 import com.sleekydz86.kopanda.domain.entities.Topic
 import com.sleekydz86.kopanda.domain.entities.Message
+
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
 import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
+
 import com.sleekydz86.kopanda.application.dto.common.MessageSearchCriteria
 import com.sleekydz86.kopanda.application.dto.request.PartitionDetailDto
 import com.sleekydz86.kopanda.application.dto.response.BrokerMetricsDto
@@ -19,6 +21,11 @@ import com.sleekydz86.kopanda.application.dto.response.PartitionMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.PerformanceMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.TopicHealthDto
 import com.sleekydz86.kopanda.application.dto.response.TopicMetricsDto
+
+import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
+import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
+import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
+
 
 interface KafkaRepository {
     suspend fun getTopics(connection: Connection): List<Topic>
