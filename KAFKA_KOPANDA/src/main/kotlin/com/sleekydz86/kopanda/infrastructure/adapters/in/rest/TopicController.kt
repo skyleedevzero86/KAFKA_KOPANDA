@@ -47,13 +47,23 @@ class TopicController(
     )
     suspend fun getTopics(
         @Parameter(description = "연결 ID", required = true)
-        @RequestParam connectionId: String
+        @RequestParam connectionId: String,
+        @Parameter(description = "내부 토픽 포함 여부", required = false)
+        @RequestParam(defaultValue = "true") includeInternal: Boolean
     ): ResponseEntity<List<TopicDto>> {
         return try {
-            logger.info("토픽 목록 조회 요청: $connectionId")
+            logger.info("토픽 목록 조회 요청: $connectionId, includeInternal: $includeInternal")
             val topics = kafkaManagementUseCase.getTopics(connectionId)
-            logger.info("토픽 목록 조회 성공: ${topics.size}개")
-            ResponseEntity.ok(topics)
+            
+            
+            val filteredTopics = if (includeInternal) {
+                topics
+            } else {
+                topics.filter { !it.isInternal }
+            }
+            
+            logger.info("토픽 목록 조회 성공: ${filteredTopics.size}개 (전체: ${topics.size}개, 내부토픽: ${topics.count { it.isInternal }}개)")
+            ResponseEntity.ok(filteredTopics)
         } catch (e: DomainException) {
             logger.warn("연결을 찾을 수 없음: $connectionId")
             ResponseEntity.notFound().build()
@@ -218,6 +228,71 @@ class TopicController(
             ResponseEntity.notFound().build()
         } catch (e: Exception) {
             logger.error("토픽 상태 점검 실패: $connectionId/$topicName", e)
+            ResponseEntity.internalServerError().build()
+        }
+    }
+
+    @PostMapping("/test/internal-topics")
+    @Operation(
+        summary = "내부 토픽 테스트 생성",
+        description = "테스트용 내부 토픽들을 생성합니다."
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "내부 토픽 생성 성공"
+            )
+        ]
+    )
+    suspend fun createTestInternalTopics(
+        @Parameter(description = "연결 ID", required = true)
+        @RequestParam connectionId: String
+    ): ResponseEntity<Map<String, Any>> {
+        return try {
+            logger.info("테스트 내부 토픽 생성 요청: $connectionId")
+            
+            val internalTopics = listOf(
+                "__consumer_offsets",
+                "__transaction_state",
+                "__schema_registry"
+            )
+            
+            val results = mutableListOf<String>()
+            
+            for (topicName in internalTopics) {
+                try {
+                    val createRequest = CreateTopicRequest(
+                        name = topicName,
+                        partitions = 1,
+                        replicationFactor = 1,
+                        config = mapOf(
+                            "cleanup.policy" to "delete",
+                            "retention.ms" to "604800000"
+                        )
+                    )
+                    
+                    kafkaManagementUseCase.createTopic(connectionId, createRequest)
+                    results.add("✅ $topicName 생성 성공")
+                    logger.info("내부 토픽 생성 성공: $topicName")
+                } catch (e: Exception) {
+                    results.add(" $topicName 생성 실패: ${e.message}")
+                    logger.warn("내부 토픽 생성 실패: $topicName - ${e.message}")
+                }
+            }
+            
+            val response = mapOf(
+                "message" to "테스트 내부 토픽 생성 완료",
+                "results" to results,
+                "total" to internalTopics.size,
+                "successful" to results.count { it.startsWith("ok") },
+                "failed" to results.count { it.startsWith("x") }
+            )
+            
+            logger.info("테스트 내부 토픽 생성 완료: $connectionId")
+            ResponseEntity.ok(response)
+        } catch (e: Exception) {
+            logger.error("테스트 내부 토픽 생성 실패: $connectionId", e)
             ResponseEntity.internalServerError().build()
         }
     }

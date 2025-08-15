@@ -12,10 +12,12 @@
           </el-tag>
           <el-tag
             v-if="topic.isInternal"
-            type="info"
+            type="warning"
             size="small"
+            class="internal-topic-tag"
           >
-            내부
+            <el-icon><Warning /></el-icon>
+            내부 토픽
           </el-tag>
         </div>
       </div>
@@ -23,11 +25,10 @@
 
     <div class="card-content">
       <div class="topic-info">
-        <p><strong>파티션:</strong> {{ topic.partitionCount }}개</p>
+        <p><strong>파티션:</strong> {{ topic.partitionCount }}</p>
         <p><strong>복제 팩터:</strong> {{ topic.replicationFactor }}</p>
         <p><strong>메시지 수:</strong> {{ formatNumber(topic.messageCount) }}</p>
         <p><strong>생성일:</strong> {{ formatDate(topic.createdAt) }}</p>
-        <p><strong>수정일:</strong> {{ formatDate(topic.updatedAt) }}</p>
       </div>
 
       <div class="card-actions">
@@ -41,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { Delete } from '@element-plus/icons-vue'
+import { Delete, Warning } from '@element-plus/icons-vue'
 import type { TopicDto } from '@/types/topic'
 import { formatDate, formatNumber } from '@/utils/formatters'
 
@@ -91,6 +92,16 @@ const handleDelete = () => {
 .topic-status {
   display: flex;
   gap: 8px;
+}
+
+.internal-topic-tag {
+  background-color: #fdf6ec;
+  border-color: #e6a23c;
+  color: #b88200;
+}
+
+.internal-topic-tag .el-icon {
+  margin-right: 4px;
 }
 
 .card-content {

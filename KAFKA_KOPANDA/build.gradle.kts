@@ -52,10 +52,10 @@ dependencies {
 	implementation("io.micrometer:micrometer-registry-jmx")
 	implementation("org.springframework.boot:spring-boot-starter-aop")
 
-	// JMX 연결
-	implementation("com.sun.management:jmxremote:1.0")
-	implementation("javax.management:jmx:1.2.1")
-	implementation("javax.management.remote:jmxremote:1.0.1_04")
+	// JMX 연결 (제거 - 문제가 있는 의존성들)
+	// implementation("com.sun.management:jmxremote:1.0")
+	// implementation("javax.management:jmx:1.2.1")
+	// implementation("javax.management.remote:jmxremote:1.0.1_04")
 
 	// Database
 	implementation("com.h2database:h2")

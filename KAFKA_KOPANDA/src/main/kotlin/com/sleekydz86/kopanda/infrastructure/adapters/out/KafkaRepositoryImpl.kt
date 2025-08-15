@@ -39,25 +39,25 @@ class KafkaRepositoryImpl : KafkaRepository {
         return try {
             val topicList = adminClient.listTopics().names().get()
             topicList.map { topicName ->
-                val topicDetails = adminClient.describeTopics(listOf(topicName)).all().get()[topicName]
-                val partitions = topicDetails?.partitions()?.map { partitionInfo ->
-                    com.sleekydz86.kopanda.domain.entities.Partition(
-                        partitionNumber = PartitionNumber(partitionInfo.partition()),
-                        leader = BrokerId(partitionInfo.leader().id()),
-                        replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
-                        inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
-                        earliestOffset = 0,
-                        latestOffset = 0
-                    )
-                } ?: emptyList()
+                val topicDetails = adminClient.describeTopics(listOf(topicName)).all().get()
+            val partitions = topicDetails?.get(topicName)?.partitions()?.map { partitionInfo ->
+                com.sleekydz86.kopanda.domain.entities.Partition(
+                    partitionNumber = PartitionNumber(partitionInfo.partition()),
+                    leader = BrokerId(partitionInfo.leader()?.id() ?: -1),
+                    replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
+                    inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
+                    earliestOffset = 0,
+                    latestOffset = 0
+                )
+            } ?: emptyList()
 
                 Topic(
-                    name = TopicName(topicName),
-                    config = TopicConfig(
-                        partitionCount = partitions.size,
-                        replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
-                        config = emptyMap()
-                    )
+                name = TopicName(topicName),
+                config = TopicConfig(
+                    partitionCount = partitions.size,
+                    replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
+                    config = emptyMap()
+                )
                 ).apply {
                     partitions.forEach { addPartition(it) }
                 }

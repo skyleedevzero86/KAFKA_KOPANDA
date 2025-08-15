@@ -9,7 +9,7 @@ export const useTopicStore = defineStore('topic', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  async function fetchTopics(connectionId: string) {
+  async function fetchTopics(connectionId: string, includeInternal: boolean = true) {
     if (!connectionId) {
       error.value = 'Connection ID is required'
       return
@@ -18,7 +18,7 @@ export const useTopicStore = defineStore('topic', () => {
     try {
       loading.value = true
       error.value = null
-      topics.value = await topicService.getTopics(connectionId)
+      topics.value = await topicService.getTopics(connectionId, includeInternal)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch topics'
       console.error('Failed to fetch topics:', err)
