@@ -10,6 +10,7 @@ import com.sleekydz86.kopanda.application.ports.out.ConnectionRepository
 import com.sleekydz86.kopanda.application.ports.out.KafkaRepository
 import com.sleekydz86.kopanda.domain.entities.*
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
+import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
 import com.sleekydz86.kopanda.shared.domain.DomainException
@@ -18,6 +19,10 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import org.slf4j.LoggerFactory
 import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import java.time.Duration
+import java.util.Properties
+
 
 @Service
 @Transactional
@@ -180,6 +185,7 @@ class KafkaApplicationService(
     }
 
     override suspend fun getConnectionStatus(id: String): ConnectionStatus {
+
         val connection = getConnectionOrThrow(id)
 
         return try {
@@ -241,9 +247,37 @@ class KafkaApplicationService(
                 details = mapOf(
                     "status" to "ERROR",
                     "error" to (e.message ?: "Unknown error")
+
+    val connection = getConnectionOrThrow(id)
+
+    return try {
+        logger.info("Checking connection status for: ${connection.name.value} (${connection.getConnectionString()})")
+        
+        val isConnected = kafkaRepository.testConnection(connection)
+        
+        if (isConnected) {
+
+            connection.markAsConnected()
+            connectionRepository.save(connection)
+            
+            val adminClient = createAdminClient(connection)
+            val clusterDescription = adminClient.describeCluster().nodes().get()
+            val topicList = adminClient.listTopics().names().get()
+            adminClient.close()
+
+            val history = ConnectionHistory.create(
+                connectionId = connection.getId(),
+                eventType = "CONNECTION_STATUS_CHECK",
+                description = "연결 상태 확인 성공",
+                details = mapOf(
+                    "status" to "CONNECTED",
+                    "brokerCount" to clusterDescription.size.toString(),
+                    "topicCount" to topicList.size.toString()
+
                 )
             )
             connectionHistoryRepository.save(history)
+
 
             activityManagementUseCase.logConnectionOffline(
                 connectionName = connection.name.value,
@@ -252,12 +286,54 @@ class KafkaApplicationService(
 
             ConnectionStatus(
                 connectionId = id,
-                status = ConnectionStatusType.ERROR,
+                status = ConnectionStatusType.CONNECTED,
                 lastChecked = LocalDateTime.now(),
-                errorMessage = e.message
+                brokerCount = clusterDescription.size,
+                topicCount = topicList.size
+            )
+        } else {
+
+
+            connection.markAsDisconnected()
+            connectionRepository.save(connection)
+            
+            ConnectionStatus(
+                connectionId = id,
+                status = ConnectionStatusType.DISCONNECTED,
+                lastChecked = LocalDateTime.now(),
+                errorMessage = "Connection test failed"
             )
         }
+    } catch (e: Exception) {
+        logger.error("Connection status check failed for ${connection.name.value}: ${e.message}", e)
+
+        connection.markAsError(e.message)
+        connectionRepository.save(connection)
+
+        val history = ConnectionHistory.create(
+            connectionId = connection.getId(),
+            eventType = "CONNECTION_STATUS_CHECK_FAILED",
+            description = "연결 상태 확인 실패: ${e.message}",
+            details = mapOf(
+                "status" to "ERROR",
+                "error" to (e.message ?: "Unknown error")
+            )
+        )
+        connectionHistoryRepository.save(history)
+
+        activityManagementUseCase.logConnectionOffline(
+            connectionName = connection.name.value,
+            connectionId = connection.getId().value
+        )
+
+        ConnectionStatus(
+            connectionId = id,
+            status = ConnectionStatusType.ERROR,
+            lastChecked = LocalDateTime.now(),
+            errorMessage = e.message
+        )
     }
+}
 
     override suspend fun refreshAllConnectionStatuses() {
         val startTime = LocalDateTime.now()
