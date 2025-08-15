@@ -625,7 +625,7 @@ class KafkaApplicationService(
             createdAt = this.createdAt,
             updatedAt = this.updatedAt
         )
-    }
+}
 
     private fun Partition.toPartitionDto(): PartitionDto {
         return PartitionDto(

@@ -65,14 +65,14 @@ class TopicController(
 
     @GetMapping("/{topicName}")
     @Operation(
-        summary = "토픽 상세 조회",
-        description = "특정 토픽의 상세 정보를 조회합니다."
+        summary = "토픽 상세 정보 조회",
+        description = "특정 토픽의 상세 정보와 파티션 정보를 조회합니다."
     )
     @ApiResponses(
         value = [
             ApiResponse(
                 responseCode = "200",
-                description = "토픽 상세 조회 성공",
+                description = "토픽 상세 정보 조회 성공",
                 content = [Content(
                     mediaType = "application/json",
                     schema = Schema(implementation = TopicDetailDto::class)
@@ -91,14 +91,15 @@ class TopicController(
         @PathVariable topicName: String
     ): ResponseEntity<TopicDetailDto> {
         return try {
-            logger.info("토픽 상세 조회 요청: $connectionId/$topicName")
-            val topic = kafkaManagementUseCase.getTopicDetails(connectionId, topicName)
-            ResponseEntity.ok(topic)
+            logger.info("토픽 상세 정보 조회 요청: $connectionId/$topicName")
+            val topicDetails = kafkaManagementUseCase.getTopicDetails(connectionId, topicName)
+            logger.info("토픽 상세 정보 조회 성공: $connectionId/$topicName")
+            ResponseEntity.ok(topicDetails)
         } catch (e: DomainException) {
-            logger.warn("토픽을 찾을 수 없음: $topicName")
+            logger.warn("토픽을 찾을 수 없음: $connectionId/$topicName")
             ResponseEntity.notFound().build()
         } catch (e: Exception) {
-            logger.error("토픽 상세 조회 실패: $connectionId/$topicName", e)
+            logger.error("토픽 상세 정보 조회 실패: $connectionId/$topicName", e)
             ResponseEntity.internalServerError().build()
         }
     }
