@@ -2,11 +2,11 @@ import { apiService } from './api'
 import type { TopicDto, TopicDetailDto, CreateTopicRequest, DeleteTopicRequest } from '@/types/topic'
 
 export class TopicService {
-  async getTopics(connectionId: string): Promise<TopicDto[]> {
+  async getTopics(connectionId: string, includeInternal: boolean = true): Promise<TopicDto[]> {
     if (!connectionId) {
       throw new Error('Connection ID is required')
     }
-    return apiService.get<TopicDto[]>(`/topics?connectionId=${connectionId}`) 
+    return apiService.get<TopicDto[]>(`/topics?connectionId=${connectionId}&includeInternal=${includeInternal}`) 
   }
 
   async getTopicDetails(connectionId: string, topicName: string): Promise<TopicDetailDto> {

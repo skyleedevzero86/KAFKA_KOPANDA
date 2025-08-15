@@ -202,7 +202,7 @@ onMounted(async () => {
   console.log('Dashboard 컴포넌트 마운트됨')
   await connectionStore.fetchConnections()
   if (connectionStore.currentConnection) {
-    await topicStore.fetchTopics(connectionStore.currentConnection.id)
+    await topicStore.fetchTopics(connectionStore.currentConnection.id, true)
     await metricsStore.fetchMetrics(connectionStore.currentConnection.id)
   }
 })

@@ -58,6 +58,7 @@ class KafkaRepositoryImpl(
 
             val topicList = adminClient.listTopics().names().get()
             topicList.map { topicName ->
+
                 val topicDetails = adminClient.describeTopics(listOf(topicName)).all().get()[topicName]
                 val partitions = topicDetails?.partitions()?.map { partitionInfo ->
                     com.sleekydz86.kopanda.domain.entities.Partition(
@@ -141,34 +142,80 @@ class KafkaRepositoryImpl(
                     partitionNumber = PartitionNumber(partitionInfo.partition()),
                     leader = BrokerId(partitionInfo.leader().id()),
 
-                    replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
-                    inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
-                    earliestOffset = 0,
-                    latestOffset = 0
-
                     replicas = partitionInfo.replicas().map { broker -> BrokerId(broker.id()) },
                     inSyncReplicas = partitionInfo.isr().map { broker -> BrokerId(broker.id()) },
                     earliestOffset = earliestOffset,
                     latestOffset = latestOffset
 
                 )
-            }
+            } ?: emptyList()
 
-            Topic(
-                name = topicName,
+                Topic(
+                name = TopicName(topicName),
                 config = TopicConfig(
                     partitionCount = partitions.size,
                     replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
                     config = emptyMap()
                 )
+
             ).apply {
                 partitions.forEach { partition -> addPartition(partition) }
+
             }
         } finally {
             adminClient.close()
             consumer.close()
         }
     }
+
+
+override suspend fun getTopicDetails(connection: Connection, topicName: TopicName): Topic? {
+    val adminClient = createAdminClient(connection)
+    val consumer = createConsumer(connection)
+    
+    return try {
+        val topicDetails = adminClient.describeTopics(listOf(topicName.value)).all().get()[topicName.value]
+        if (topicDetails == null) return null
+
+        val partitions = topicDetails.partitions().map { partitionInfo ->
+            val partitionNumber = partitionInfo.partition()
+            val topicPartition = TopicPartition(topicName.value, partitionNumber)
+            
+            consumer.assign(listOf(topicPartition))
+            val beginningOffsets = consumer.beginningOffsets(listOf(topicPartition))
+            val endOffsets = consumer.endOffsets(listOf(topicPartition))
+            
+            val earliestOffset = beginningOffsets[topicPartition] ?: 0L
+            val latestOffset = endOffsets[topicPartition] ?: 0L
+            val messageCount = latestOffset - earliestOffset
+
+            com.sleekydz86.kopanda.domain.entities.Partition(
+                partitionNumber = PartitionNumber(partitionNumber),
+                leader = BrokerId(partitionInfo.leader().id()),
+                replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
+                inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
+                earliestOffset = earliestOffset,
+                latestOffset = latestOffset,
+                messageCount = messageCount
+            )
+        }
+
+        Topic(
+            name = topicName,
+            config = TopicConfig(
+                partitionCount = partitions.size,
+                replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
+                config = emptyMap()
+            )
+        ).apply {
+            partitions.forEach { addPartition(it) }
+        }
+    } finally {
+        adminClient.close()
+        consumer.close()
+    }
+}
+
 
     override suspend fun createTopic(connection: Connection, topic: Topic): Topic {
         val adminClient = createAdminClient(connection)
@@ -1021,11 +1068,14 @@ class KafkaRepositoryImpl(
     }
 
     private fun createAdminClient(connection: Connection): AdminClient {
-        val config = Properties()
-        config[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
-        config[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
-        return AdminClient.create(config)
+    val props = Properties().apply {
+        put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "${connection.host.value}:${connection.port.value}")
+        put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "10000")
+        put(AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG, "10000")
+        put(AdminClientConfig.RETRIES_CONFIG, "3")
     }
+    return AdminClient.create(props)
+}
 
     private fun createConsumer(connection: Connection): KafkaConsumer<String, String> {
         val config = Properties()
