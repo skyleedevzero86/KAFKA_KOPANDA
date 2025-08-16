@@ -29,24 +29,48 @@
         <template #header>
           <div class="card-header">
             <span>내부 토픽 관리</span>
-            <el-button size="small" @click="addCommonInternalTopics">
-              일반 내부 토픽 추가
+            <el-button size="small" @click="checkForInternalTopics" :loading="loading">
+              내부 토픽 확인
             </el-button>
           </div>
         </template>
         <div class="internal-topics-content">
-          <p>Kafka 클러스터의 내부 토픽들을 수동으로 추가할 수 있습니다.</p>
-          <el-button-group>
-            <el-button size="small" @click="addInternalTopic('__consumer_offsets')">
-              __consumer_offsets
-            </el-button>
-            <el-button size="small" @click="addInternalTopic('__transaction_state')">
-              __transaction_state
-            </el-button>
-            <el-button size="small" @click="addInternalTopic('__schema_registry')">
-              __schema_registry
-            </el-button>
-          </el-button-group>
+          <p>Kafka 클러스터의 내부 토픽들은 자동으로 생성됩니다. 새로고침하여 확인해보세요.</p>
+          <div v-if="internalTopicsStatus.length > 0" class="internal-topics-status">
+            <h4>발견된 내부 토픽:</h4>
+            <ul>
+              <li v-for="topic in internalTopicsStatus" :key="topic" class="internal-topic-item">
+                <el-tag type="info" size="small">{{ topic }}</el-tag>
+              </li>
+            </ul>
+          </div>
+          <div v-else class="no-internal-topics">
+            <p>내부 토픽이 발견되지 않았습니다. Kafka 클러스터가 아직 활동하지 않았을 수 있습니다.</p>
+          </div>
+          
+          <el-collapse v-if="showDebugSection">
+            <el-collapse-item title="고급 옵션 (개발용)" name="debug">
+              <el-alert 
+                title="주의" 
+                type="warning" 
+                :closable="false"
+                description="내부 토픽은 일반적으로 Kafka에서 자동으로 관리됩니다. 수동 생성은 권장되지 않습니다."
+                show-icon
+              />
+              <br>
+              <el-button-group>
+                <el-button size="small" @click="attemptCreateInternalTopic('__consumer_offsets')" :disabled="loading">
+                  __consumer_offsets 생성 시도
+                </el-button>
+                <el-button size="small" @click="attemptCreateInternalTopic('__transaction_state')" :disabled="loading">
+                  __transaction_state 생성 시도
+                </el-button>
+                <el-button size="small" @click="attemptCreateInternalTopic('__schema_registry')" :disabled="loading">
+                  __schema_registry 생성 시도
+                </el-button>
+              </el-button-group>
+            </el-collapse-item>
+          </el-collapse>
         </div>
       </el-card>
     </div>
@@ -88,7 +112,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { Plus, Refresh } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useTopicStore } from '@/stores/topic'
 import { useConnectionStore } from '@/stores/connection'
 import type { TopicDto, CreateTopicRequest } from '@/types/topic'
@@ -105,11 +129,16 @@ const connectionStore = useConnectionStore()
 const showCreateForm = ref(false)
 const showDeleteDialog = ref(false)
 const deletingTopicName = ref('')
-const showInternalTopics = ref(true) 
+const showInternalTopics = ref(true)
+const internalTopicsStatus = ref<string[]>([])
+const showDebugSection = ref(false) 
 
-const { topics, loading, error, currentConnection } = storeToRefs(topicStore)
-const { connections } = storeToRefs(connectionStore)
+const { topics, loading, error } = storeToRefs(topicStore)
+const { connections, currentConnection } = storeToRefs(connectionStore)
 
+const activeConnection = computed(() => {
+  return currentConnection?.value || connections.value?.[0] || null
+})
 
 const filteredTopics = computed(() => {
   if (showInternalTopics.value) {
@@ -118,16 +147,67 @@ const filteredTopics = computed(() => {
   return topics.value.filter(topic => !topic.isInternal)
 })
 
-const handleInternalTopicsToggle = (value: boolean) => {
+const handleInternalTopicsToggle = async (value: boolean) => {
   showInternalTopics.value = value
   ElMessage.success(value ? '내부 토픽이 표시됩니다' : '내부 토픽이 숨겨집니다')
+  
+  await refreshTopics()
 }
 
-
-const addInternalTopic = async (topicName: string) => {
-  if (!currentConnection.value) {
+const checkForInternalTopics = async () => {
+  const connection = activeConnection.value
+  
+  if (!connection) {
     ElMessage.error('연결을 선택해주세요')
     return
+  }
+
+  try {
+    const status = await topicStore.getInternalTopicsStatus(connection.id)
+    internalTopicsStatus.value = status.found
+    
+    if (status.found.length > 0) {
+      ElMessage.success(`${status.found.length}개의 내부 토픽을 발견했습니다`)
+      
+      if (status.missing.length > 0) {
+        ElMessage.info(`누락된 내부 토픽: ${status.missing.join(', ')}`)
+      }
+    } else {
+      ElMessage.info('내부 토픽이 발견되지 않았습니다. Kafka 클러스터가 아직 활동하지 않았을 수 있습니다.')
+    }
+  } catch (err: any) {
+    console.error('내부 토픽 확인 실패:', err)
+    
+    if (err.message?.includes('DESCRIBE_TOPIC_PARTITIONS') || 
+        err.message?.includes('UnsupportedVersionException')) {
+      ElMessage.warning('Kafka 버전 호환성 문제로 일부 기능이 제한됩니다. Kafka 2.8.0 이상을 권장합니다.')
+      internalTopicsStatus.value = []
+    } else {
+      ElMessage.error(`내부 토픽 확인 실패: ${err.message || 'Unknown error'}`)
+    }
+  }
+}
+
+const attemptCreateInternalTopic = async (topicName: string) => {
+  const connection = activeConnection.value
+  
+  if (!connection) {
+    ElMessage.error('연결을 선택해주세요')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `내부 토픽 '${topicName}'을 수동으로 생성하려고 합니다. 이는 권장되지 않으며 Kafka 클러스터에 문제를 일으킬 수 있습니다. 계속하시겠습니까?`,
+      '경고',
+      {
+        confirmButtonText: '계속',
+        cancelButtonText: '취소',
+        type: 'warning',
+      }
+    )
+  } catch {
+    return 
   }
 
   try {
@@ -141,50 +221,26 @@ const addInternalTopic = async (topicName: string) => {
       }
     }
     
-    await topicStore.createTopic(currentConnection.value.id, request)
-    ElMessage.success(`내부 토픽 '${topicName}'이 추가되었습니다`)
-  } catch (err) {
-    ElMessage.error(`내부 토픽 추가 실패: ${err instanceof Error ? err.message : 'Unknown error'}`)
-  }
-}
-
-const addCommonInternalTopics = async () => {
-  if (!currentConnection.value) {
-    ElMessage.error('연결을 선택해주세요')
-    return
-  }
-
-  const commonInternalTopics = [
-    '__consumer_offsets',
-    '__transaction_state',
-    '__schema_registry'
-  ]
-
-  try {
-    for (const topicName of commonInternalTopics) {
-      const request: CreateTopicRequest = {
-        name: topicName,
-        partitions: 1,
-        replicationFactor: 1,
-        config: {
-          'cleanup.policy': 'delete',
-          'retention.ms': '604800000'
-        }
-      }
-      
-      await topicStore.createTopic(currentConnection.value.id, request)
-    }
+    await topicStore.createTopic(connection.id, request)
+    ElMessage.success(`내부 토픽 '${topicName}'이 생성되었습니다`)
     
-    ElMessage.success('일반 내부 토픽들이 추가되었습니다')
-  } catch (err) {
-    ElMessage.error(`내부 토픽 일괄 추가 실패: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    await checkForInternalTopics()
+  } catch (err: any) {
+    console.error('Internal topic creation failed:', err)
+    
+    if (err.message.includes('자동으로 관리됩니다')) {
+      ElMessage.warning(err.message)
+    } else {
+      ElMessage.error(`내부 토픽 생성 실패: ${err.message}`)
+    }
   }
 }
-
 
 const refreshTopics = async () => {
-  if (currentConnection.value) {
-    await topicStore.fetchTopics(currentConnection.value.id, showInternalTopics.value)
+  const connection = activeConnection.value
+  if (connection) {
+    await topicStore.fetchTopics(connection.id, showInternalTopics.value)
+    await checkForInternalTopics()
   }
 }
 
@@ -194,46 +250,53 @@ const handleDeleteTopic = (topicName: string) => {
 }
 
 const handleTopicCreated = async (data: CreateTopicRequest) => {
-  if (!currentConnection.value) {
+  const connection = activeConnection.value
+  
+  if (!connection) {
     ElMessage.error('연결을 선택해주세요')
     return
   }
 
   try {
-    await topicStore.createTopic(currentConnection.value.id, data)
+    await topicStore.createTopic(connection.id, data)
     showCreateForm.value = false
     ElMessage.success('토픽이 생성되었습니다')
-  } catch (err) {
-    ElMessage.error(`토픽 생성 실패: ${err instanceof Error ? err.message : 'Unknown error'}`)
+  } catch (err: any) {
+    console.error('Topic creation failed:', err)
   }
 }
 
 const confirmDeleteTopic = async () => {
-  if (!currentConnection.value || !deletingTopicName.value) {
+  const connection = activeConnection.value
+  
+  if (!connection || !deletingTopicName.value) {
     ElMessage.error('삭제할 토픽을 찾을 수 없습니다')
     return
   }
 
   try {
-    await topicStore.deleteTopic(currentConnection.value.id, deletingTopicName.value)
+    await topicStore.deleteTopic(connection.id, deletingTopicName.value)
     showDeleteDialog.value = false
     deletingTopicName.value = ''
     ElMessage.success('토픽이 삭제되었습니다')
-  } catch (err) {
-    ElMessage.error(`토픽 삭제 실패: ${err instanceof Error ? err.message : 'Unknown error'}`)
+  } catch (err: any) {
+    console.error('Topic deletion failed:', err)
   }
 }
 
 onMounted(async () => {
   await connectionStore.fetchConnections()
-  if (connections.value.length > 0) {
-    await topicStore.fetchTopics(connections.value[0].id, showInternalTopics.value)
+  const connection = activeConnection.value
+  if (connection) {
+    await topicStore.fetchTopics(connection.id, showInternalTopics.value)
+    await checkForInternalTopics()
   }
 })
 
-watch(currentConnection, async (newConnection) => {
+watch(activeConnection, async (newConnection) => {
   if (newConnection) {
     await topicStore.fetchTopics(newConnection.id, showInternalTopics.value)
+    await checkForInternalTopics()
   }
 })
 </script>
@@ -301,9 +364,44 @@ watch(currentConnection, async (newConnection) => {
   color: #606266;
 }
 
+.internal-topics-status {
+  margin: 16px 0;
+}
+
+.internal-topics-status h4 {
+  margin: 0 0 8px 0;
+  color: #303133;
+  font-size: 14px;
+}
+
+.internal-topics-status ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.internal-topic-item {
+  display: inline-block;
+  margin: 4px 8px 4px 0;
+}
+
+.no-internal-topics {
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.no-internal-topics p {
+  margin: 0;
+  color: #6c757d;
+  font-style: italic;
+}
+
 .internal-topics-content .el-button-group {
   display: flex;
   gap: 8px;
+  margin-top: 12px;
 }
 
 .current-connection {

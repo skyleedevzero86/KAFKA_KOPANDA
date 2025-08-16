@@ -42,7 +42,6 @@ export const useMetricsStore = defineStore('metrics', () => {
       
       const consumerGroup = await metricsService.createTestConsumerGroup(connectionId, topicName)
       
-      // 새로 생성된 컨슈머 그룹을 목록에 추가
       consumerGroups.value.push(consumerGroup)
       
       return consumerGroup

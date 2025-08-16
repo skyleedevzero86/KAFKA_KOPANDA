@@ -167,13 +167,13 @@ watch(connections, (newConnections) => {
 
   if (newConnections.length === 1) {
     connectionStore.setCurrentConnection(newConnections[0])
-    console.log('✅ 자동으로 연결 선택됨:', newConnections[0])
+    console.log(' 자동으로 연결 선택됨:', newConnections[0])
     ElMessage.success(`'${newConnections[0].name}' 연결이 자동 선택되었습니다.`)
   }
  
   else if (newConnections.length > 1 && !connectionStore.currentConnection) {
     connectionStore.setCurrentConnection(newConnections[0])
-    console.log('✅ 첫 번째 연결 선택됨:', newConnections[0])
+    console.log(' 첫 번째 연결 선택됨:', newConnections[0])
     ElMessage.success(`'${newConnections[0].name}' 연결이 선택되었습니다.`)
   }
 }, { immediate: true })
@@ -185,7 +185,7 @@ onMounted(async () => {
   if (connectionStore.connections.length > 0 && !connectionStore.currentConnection) {
     const firstConnection = connectionStore.connections[0]
     connectionStore.setCurrentConnection(firstConnection)
-    console.log('✅ 마운트 시 연결 자동 선택:', firstConnection)
+    console.log(' 마운트 시 연결 자동 선택:', firstConnection)
     ElMessage.success(`'${firstConnection.name}' 연결이 자동 선택되었습니다.`)
   }
 })

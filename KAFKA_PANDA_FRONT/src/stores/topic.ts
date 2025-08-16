@@ -10,85 +10,77 @@ export const useTopicStore = defineStore('topic', () => {
   const error = ref<string | null>(null)
 
   async function fetchTopics(connectionId: string, includeInternal: boolean = true) {
-    if (!connectionId) {
-      error.value = 'Connection ID is required'
-      return
-    }
-
     try {
       loading.value = true
       error.value = null
-      topics.value = await topicService.getTopics(connectionId, includeInternal)
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch topics'
-      console.error('Failed to fetch topics:', err)
+      const fetchedTopics = await topicService.getTopics(connectionId, includeInternal)
+      topics.value = fetchedTopics
+    } catch (err: any) {
+      error.value = err.message || '토픽 목록을 불러오는데 실패했습니다.'
+      throw err
     } finally {
       loading.value = false
     }
   }
 
   async function getTopicDetails(connectionId: string, topicName: string) {
-    if (!connectionId || !topicName) {
-      error.value = 'Connection ID and Topic Name are required'
-      return
-    }
-
     try {
       loading.value = true
       error.value = null
-      currentTopic.value = await topicService.getTopicDetails(connectionId, topicName)
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch topic details'
-      console.error('Failed to fetch topic details:', err)
+      const topicDetails = await topicService.getTopicDetails(connectionId, topicName)
+      currentTopic.value = topicDetails
+      return topicDetails
+    } catch (err: any) {
+      error.value = err.message || '토픽 상세 정보를 불러오는데 실패했습니다.'
+      throw err
     } finally {
       loading.value = false
     }
   }
 
   async function createTopic(connectionId: string, request: CreateTopicRequest) {
-  if (!connectionId) {
-    error.value = 'Connection ID is required'
-    console.error('토픽 생성 실패: connectionId가 없습니다')
-    return
-  }
-
-  try {
-    loading.value = true
-    error.value = null
-    console.log('토픽 생성 시작:', { connectionId, request })
-    
-    const newTopic = await topicService.createTopic(connectionId, request)
-    console.log('토픽 생성 성공:', newTopic)
-    
-    topics.value.push(newTopic)
-    return newTopic
-  } catch (err) {
-    console.error('토픽 생성 실패 상세:', err)
-    error.value = err instanceof Error ? err.message : 'Failed to create topic'
-    console.error('Failed to create topic:', err)
-    throw err
-  } finally {
-    loading.value = false
-  }
-}
-
-  async function deleteTopic(connectionId: string, topicName: string) {
-    if (!connectionId || !topicName) {
-      error.value = 'Connection ID and Topic Name are required'
-      return
-    }
-
     try {
       loading.value = true
       error.value = null
+      
+      if (request.name.startsWith('__')) {
+        const isInternalTopic = request.name === '__consumer_offsets' || 
+                                request.name === '__transaction_state' || 
+                                request.name === '__schema_registry'
+        
+        if (isInternalTopic) {
+          throw new Error(`'${request.name}'는 Kafka에서 자동으로 관리되는 내부 토픽입니다. 수동 생성은 권장되지 않습니다.`)
+        }
+      }
+      
+      const newTopic = await topicService.createTopic(connectionId, request)
+      topics.value.push(newTopic)
+      return newTopic
+    } catch (err: any) {
+      error.value = err.message || '토픽 생성에 실패했습니다.'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function deleteTopic(connectionId: string, topicName: string) {
+    try {
+      loading.value = true
+      error.value = null
+      
+      if (topicName.startsWith('__')) {
+        throw new Error(`'${topicName}'는 Kafka의 내부 토픽으로, 삭제할 수 없습니다.`)
+      }
+      
       await topicService.deleteTopic(connectionId, topicName)
-      topics.value = topics.value.filter(topic => topic.name !== topicName)
+      topics.value = topics.value.filter(t => t.name !== topicName)
+      
       if (currentTopic.value?.name === topicName) {
         currentTopic.value = null
       }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to delete topic'
-      console.error('Failed to delete topic:', err)
+    } catch (err: any) {
+      error.value = err.message || '토픽 삭제에 실패했습니다.'
       throw err
     } finally {
       loading.value = false
@@ -96,23 +88,76 @@ export const useTopicStore = defineStore('topic', () => {
   }
 
   async function createTestTopic(connectionId: string) {
-    if (!connectionId) {
-      error.value = 'Connection ID is required'
-      return
-    }
-
     try {
       loading.value = true
       error.value = null
-      const newTopic = await topicService.createTestTopic(connectionId)
+      
+      const testTopicRequest: CreateTopicRequest = {
+        name: `test-topic-${Date.now()}`,
+        partitions: 3,
+        replicationFactor: 1,
+        config: {
+          'cleanup.policy': 'delete',
+          'retention.ms': '604800000'
+        }
+      }
+      
+      const newTopic = await topicService.createTopic(connectionId, testTopicRequest)
       topics.value.push(newTopic)
       return newTopic
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to create test topic'
-      console.error('Failed to create test topic:', err)
+    } catch (err: any) {
+      error.value = err.message || '테스트 토픽 생성에 실패했습니다.'
       throw err
     } finally {
       loading.value = false
+    }
+  }
+
+  async function checkInternalTopics(connectionId: string): Promise<string[]> {
+    try {
+      loading.value = true
+      error.value = null
+      
+      const allTopics = await topicService.getTopics(connectionId, true)
+      const internalTopics = allTopics
+        .filter(topic => topic.isInternal)
+        .map(topic => topic.name)
+      
+      return internalTopics
+    } catch (err: any) {
+      error.value = err.message || '내부 토픽 확인에 실패했습니다.'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function getInternalTopicsStatus(connectionId: string): Promise<{
+    found: string[]
+    missing: string[]
+    total: number
+  }> {
+    try {
+      const foundTopics = await checkInternalTopics(connectionId)
+      
+      const expectedInternalTopics = [
+        '__consumer_offsets',
+        '__transaction_state',
+        '__schema_registry'
+      ]
+      
+      const missingTopics = expectedInternalTopics.filter(
+        expected => !foundTopics.includes(expected)
+      )
+      
+      return {
+        found: foundTopics,
+        missing: missingTopics,
+        total: foundTopics.length
+      }
+    } catch (err: any) {
+      error.value = err.message || '내부 토픽 상태 확인에 실패했습니다.'
+      throw err
     }
   }
 
@@ -122,6 +167,11 @@ export const useTopicStore = defineStore('topic', () => {
 
   function clearError() {
     error.value = null
+  }
+
+  function clearTopics() {
+    topics.value = []
+    currentTopic.value = null
   }
 
   return {
@@ -134,7 +184,10 @@ export const useTopicStore = defineStore('topic', () => {
     createTopic,
     deleteTopic,
     createTestTopic,
+    checkInternalTopics,
+    getInternalTopicsStatus,
     setCurrentTopic,
-    clearError
+    clearError,
+    clearTopics
   }
 })
