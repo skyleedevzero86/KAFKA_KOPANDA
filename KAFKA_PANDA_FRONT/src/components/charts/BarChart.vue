@@ -58,8 +58,7 @@ onMounted(() => {
 
 watch(() => props.data, (newData) => {
   if (chart) {
-   
-    chart.data = { ...newData };
+    chart.data = { ...newData }
     chart.update()
   }
 }, { deep: true })

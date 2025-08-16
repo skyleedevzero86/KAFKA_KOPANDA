@@ -26,95 +26,124 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
+import org.apache.kafka.common.errors.UnsupportedVersionException
 import org.springframework.stereotype.Repository
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
+import java.util.logging.Logger
 
 @Repository
 class KafkaRepositoryImpl : KafkaRepository {
+    
+    private val logger = Logger.getLogger(KafkaRepositoryImpl::class.java.name)
 
     override suspend fun getTopics(connection: Connection): List<Topic> {
         val adminClient = createAdminClient(connection)
         return try {
             val topicList = adminClient.listTopics().names().get()
+            
             topicList.map { topicName ->
-                val topicDetails = adminClient.describeTopics(listOf(topicName)).all().get()
-            val partitions = topicDetails?.get(topicName)?.partitions()?.map { partitionInfo ->
-                com.sleekydz86.kopanda.domain.entities.Partition(
-                    partitionNumber = PartitionNumber(partitionInfo.partition()),
-                    leader = BrokerId(partitionInfo.leader()?.id() ?: -1),
-                    replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
-                    inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
-                    earliestOffset = 0,
-                    latestOffset = 0
-                )
-            } ?: emptyList()
+                try {
+                    val topicDetails = adminClient.describeTopics(listOf(topicName)).all().get()[topicName]
+                    val partitions = topicDetails?.partitions()?.map { partitionInfo ->
+                        com.sleekydz86.kopanda.domain.entities.Partition(
+                            partitionNumber = PartitionNumber(partitionInfo.partition()),
+                            leader = BrokerId(partitionInfo.leader().id()),
+                            replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
+                            inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
+                            earliestOffset = 0,
+                            latestOffset = 0
+                        )
+                    } ?: emptyList()
 
-                Topic(
-                name = TopicName(topicName),
-                config = TopicConfig(
-                    partitionCount = partitions.size,
-                    replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
-                    config = emptyMap()
-                )
-                ).apply {
-                    partitions.forEach { addPartition(it) }
+                    Topic(
+                        name = TopicName(topicName),
+                        config = TopicConfig(
+                            partitionCount = partitions.size,
+                            replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
+                            config = emptyMap()
+                        )
+                    ).apply {
+                        partitions.forEach { addPartition(it) }
+                    }
+                } catch (e: Exception) {
+                    when (e) {
+                        is UnsupportedVersionException -> {
+                            logger.warning("Kafka 버전 호환성 문제로 토픽 상세 정보를 가져올 수 없습니다: $topicName")
+                        }
+                        else -> {
+                            logger.warning("토픽 상세 정보 조회 실패: $topicName - ${e.message}")
+                        }
+                    }
+                    
+                    Topic(
+                        name = TopicName(topicName),
+                        config = TopicConfig(
+                            partitionCount = 1,
+                            replicationFactor = 1,
+                            config = emptyMap()
+                        )
+                    )
                 }
             }
+        } catch (e: Exception) {
+            when (e) {
+                is UnsupportedVersionException -> {
+                    logger.severe("Kafka 버전 호환성 문제로 토픽 목록을 가져올 수 없습니다: ${e.message}")
+                }
+                else -> {
+                    logger.severe("토픽 목록 조회 실패: ${e.message}")
+                }
+            }
+            emptyList()
         } finally {
             adminClient.close()
         }
     }
 
+    override suspend fun getTopicDetails(connection: Connection, topicName: TopicName): Topic? {
+        val adminClient = createAdminClient(connection)
+        return try {
+            val topicDetails = adminClient.describeTopics(listOf(topicName.value)).all().get()[topicName.value]
+            if (topicDetails == null) return null
 
-override suspend fun getTopicDetails(connection: Connection, topicName: TopicName): Topic? {
-    val adminClient = createAdminClient(connection)
-    val consumer = createConsumer(connection)
-    
-    return try {
-        val topicDetails = adminClient.describeTopics(listOf(topicName.value)).all().get()[topicName.value]
-        if (topicDetails == null) return null
+            val partitions = topicDetails.partitions().map { partitionInfo ->
+                com.sleekydz86.kopanda.domain.entities.Partition(
+                    partitionNumber = PartitionNumber(partitionInfo.partition()),
+                    leader = BrokerId(partitionInfo.leader().id()),
+                    replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
+                    inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
+                    earliestOffset = 0,
+                    latestOffset = 0
+                )
+            }
 
-        val partitions = topicDetails.partitions().map { partitionInfo ->
-            val partitionNumber = partitionInfo.partition()
-            val topicPartition = TopicPartition(topicName.value, partitionNumber)
-            
-            consumer.assign(listOf(topicPartition))
-            val beginningOffsets = consumer.beginningOffsets(listOf(topicPartition))
-            val endOffsets = consumer.endOffsets(listOf(topicPartition))
-            
-            val earliestOffset = beginningOffsets[topicPartition] ?: 0L
-            val latestOffset = endOffsets[topicPartition] ?: 0L
-            val messageCount = latestOffset - earliestOffset
+            Topic(
+                name = topicName,
+                config = TopicConfig(
+                    partitionCount = partitions.size,
+                    replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
+                    config = emptyMap()
+                )
+            ).apply {
+                partitions.forEach { addPartition(it) }
+            }
+        } catch (e: Exception) {
 
-            com.sleekydz86.kopanda.domain.entities.Partition(
-                partitionNumber = PartitionNumber(partitionNumber),
-                leader = BrokerId(partitionInfo.leader().id()),
-                replicas = partitionInfo.replicas().map { BrokerId(it.id()) },
-                inSyncReplicas = partitionInfo.isr().map { BrokerId(it.id()) },
-                earliestOffset = earliestOffset,
-                latestOffset = latestOffset,
-                messageCount = messageCount
+            println("토픽 상세 정보 조회 실패: ${topicName.value} - ${e.message}")
+            Topic(
+                name = topicName,
+                config = TopicConfig(
+                    partitionCount = 1,
+                    replicationFactor = 1,
+                    config = emptyMap()
+                )
             )
+        } finally {
+            adminClient.close()
         }
-
-        Topic(
-            name = topicName,
-            config = TopicConfig(
-                partitionCount = partitions.size,
-                replicationFactor = partitions.firstOrNull()?.replicas?.size ?: 1,
-                config = emptyMap()
-            )
-        ).apply {
-            partitions.forEach { addPartition(it) }
-        }
-    } finally {
-        adminClient.close()
-        consumer.close()
     }
-}
-
 
     override suspend fun createTopic(connection: Connection, topic: Topic): Topic {
         val adminClient = createAdminClient(connection)
@@ -266,13 +295,13 @@ override suspend fun getTopicDetails(connection: Connection, topicName: TopicNam
         return KafkaMetricsDto(
             brokerCount = 1,
             topicCount = 0,
-                totalPartitions = 0,
-                messagesPerSecond = 0.0,
-                bytesInPerSec = 0.0,
-                bytesOutPerSec = 0.0,
-                activeConnections = 0,
-                timestamp = LocalDateTime.now()
-            )
+            totalPartitions = 0,
+            messagesPerSecond = 0.0,
+            bytesInPerSec = 0.0,
+            bytesOutPerSec = 0.0,
+            activeConnections = 0,
+            timestamp = LocalDateTime.now()
+        )
     }
 
     override suspend fun testConnection(connection: Connection): Boolean {
@@ -475,14 +504,19 @@ override suspend fun getTopicDetails(connection: Connection, topicName: TopicNam
     }
 
     private fun createAdminClient(connection: Connection): AdminClient {
-    val props = Properties().apply {
-        put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "${connection.host.value}:${connection.port.value}")
-        put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "10000")
-        put(AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG, "10000")
-        put(AdminClientConfig.RETRIES_CONFIG, "3")
+        val config = Properties()
+        config[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
+        config[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
+        config[AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 10000
+        
+        config[AdminClientConfig.RETRIES_CONFIG] = 3
+        config[AdminClientConfig.RETRY_BACKOFF_MS_CONFIG] = 100
+        config[AdminClientConfig.CLIENT_ID_CONFIG] = "kopanda-admin-client"
+        
+        config[AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG] = 300000 // 5분
+        
+        return AdminClient.create(config)
     }
-    return AdminClient.create(props)
-}
 
     private fun createConsumer(connection: Connection): KafkaConsumer<String, String> {
         val config = Properties()

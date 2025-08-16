@@ -625,7 +625,7 @@ class KafkaApplicationService(
             createdAt = this.createdAt,
             updatedAt = this.updatedAt
         )
-}
+    }
 
     private fun Partition.toPartitionDto(): PartitionDto {
         return PartitionDto(
@@ -660,8 +660,6 @@ class KafkaApplicationService(
         props[org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = connection.getConnectionString()
         props[org.apache.kafka.clients.admin.AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
         props[org.apache.kafka.clients.admin.AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 5000
-        
-        props["exclude.internal.topics"] = "false"
 
         if (connection.sslEnabled) {
             props[org.apache.kafka.clients.admin.AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SSL"
