@@ -1,14 +1,51 @@
 package com.sleekydz86.kopanda.application.services
 
-import com.sleekydz86.kopanda.application.dto.common.*
+import com.sleekydz86.kopanda.application.dto.common.BrokerInfo
+import com.sleekydz86.kopanda.application.dto.common.ConnectionStatus
+import com.sleekydz86.kopanda.application.dto.common.ConnectionTestResult
+import com.sleekydz86.kopanda.application.dto.common.MessageSearchCriteria
+import com.sleekydz86.kopanda.application.dto.common.OffsetType
+import com.sleekydz86.kopanda.application.dto.common.Pagination
+import com.sleekydz86.kopanda.application.dto.common.PartitionDto
 import com.sleekydz86.kopanda.application.dto.enums.ConnectionStatusType
-import com.sleekydz86.kopanda.application.dto.request.*
-import com.sleekydz86.kopanda.application.dto.response.*
-import com.sleekydz86.kopanda.application.ports.`in`.*
+import com.sleekydz86.kopanda.application.dto.request.CreateConnectionRequest
+import com.sleekydz86.kopanda.application.dto.request.CreateTopicRequest
+import com.sleekydz86.kopanda.application.dto.request.PartitionDetailDto
+import com.sleekydz86.kopanda.application.dto.request.SendMessageRequest
+import com.sleekydz86.kopanda.application.dto.request.UpdateConnectionRequest
+import com.sleekydz86.kopanda.application.dto.response.ActivityDto
+import com.sleekydz86.kopanda.application.dto.response.ClusterInfoDto
+import com.sleekydz86.kopanda.application.dto.response.ConnectionDto
+import com.sleekydz86.kopanda.application.dto.response.ConnectionHealthDto
+import com.sleekydz86.kopanda.application.dto.response.ConnectionHistoryDto
+import com.sleekydz86.kopanda.application.dto.response.ConnectionIssueDto
+import com.sleekydz86.kopanda.application.dto.response.ConnectionMetricsDto
+import com.sleekydz86.kopanda.application.dto.response.ConsumerGroupDto
+import com.sleekydz86.kopanda.application.dto.response.ConsumerGroupMetricsDto
+import com.sleekydz86.kopanda.application.dto.response.DetailedMetricsDto
+import com.sleekydz86.kopanda.application.dto.response.KafkaMetricsDto
+import com.sleekydz86.kopanda.application.dto.response.MessageDto
+import com.sleekydz86.kopanda.application.dto.response.OffsetInfoDto
+import com.sleekydz86.kopanda.application.dto.response.PaginatedResponse
+import com.sleekydz86.kopanda.application.dto.response.PartitionMetricsDto
+import com.sleekydz86.kopanda.application.dto.response.PerformanceMetricsDto
+import com.sleekydz86.kopanda.application.dto.response.PingResultDto
+import com.sleekydz86.kopanda.application.dto.response.TopicDetailDto
+import com.sleekydz86.kopanda.application.dto.response.TopicDto
+import com.sleekydz86.kopanda.application.dto.response.TopicHealthDto
+import com.sleekydz86.kopanda.application.dto.response.TopicMetricsDto
+import com.sleekydz86.kopanda.application.ports.`in`.ActivityManagementUseCase
+import com.sleekydz86.kopanda.application.ports.`in`.ConnectionManagementUseCase
+import com.sleekydz86.kopanda.application.ports.`in`.KafkaManagementUseCase
 import com.sleekydz86.kopanda.application.ports.out.ConnectionHistoryRepository
 import com.sleekydz86.kopanda.application.ports.out.ConnectionRepository
 import com.sleekydz86.kopanda.application.ports.out.KafkaRepository
-import com.sleekydz86.kopanda.domain.entities.*
+import com.sleekydz86.kopanda.domain.entities.Activity
+import com.sleekydz86.kopanda.domain.entities.Connection
+import com.sleekydz86.kopanda.domain.entities.ConnectionHistory
+import com.sleekydz86.kopanda.domain.entities.Message
+import com.sleekydz86.kopanda.domain.entities.Partition
+import com.sleekydz86.kopanda.domain.entities.Topic
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
@@ -18,7 +55,6 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import org.slf4j.LoggerFactory
-import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import java.time.Duration
 import java.util.Properties
@@ -185,7 +221,6 @@ class KafkaApplicationService(
     }
 
     override suspend fun getConnectionStatus(id: String): ConnectionStatus {
-
         val connection = getConnectionOrThrow(id)
 
         return try {
@@ -194,7 +229,6 @@ class KafkaApplicationService(
             val isConnected = kafkaRepository.testConnection(connection)
 
             if (isConnected) {
-
                 connection.markAsConnected()
                 connectionRepository.save(connection)
 
@@ -223,7 +257,6 @@ class KafkaApplicationService(
                     topicCount = topicList.size
                 )
             } else {
-
                 connection.markAsDisconnected()
                 connectionRepository.save(connection)
 
@@ -247,37 +280,9 @@ class KafkaApplicationService(
                 details = mapOf(
                     "status" to "ERROR",
                     "error" to (e.message ?: "Unknown error")
-
-    val connection = getConnectionOrThrow(id)
-
-    return try {
-        logger.info("Checking connection status for: ${connection.name.value} (${connection.getConnectionString()})")
-        
-        val isConnected = kafkaRepository.testConnection(connection)
-        
-        if (isConnected) {
-
-            connection.markAsConnected()
-            connectionRepository.save(connection)
-            
-            val adminClient = createAdminClient(connection)
-            val clusterDescription = adminClient.describeCluster().nodes().get()
-            val topicList = adminClient.listTopics().names().get()
-            adminClient.close()
-
-            val history = ConnectionHistory.create(
-                connectionId = connection.getId(),
-                eventType = "CONNECTION_STATUS_CHECK",
-                description = "연결 상태 확인 성공",
-                details = mapOf(
-                    "status" to "CONNECTED",
-                    "brokerCount" to clusterDescription.size.toString(),
-                    "topicCount" to topicList.size.toString()
-
                 )
             )
             connectionHistoryRepository.save(history)
-
 
             activityManagementUseCase.logConnectionOffline(
                 connectionName = connection.name.value,
@@ -286,54 +291,12 @@ class KafkaApplicationService(
 
             ConnectionStatus(
                 connectionId = id,
-                status = ConnectionStatusType.CONNECTED,
+                status = ConnectionStatusType.ERROR,
                 lastChecked = LocalDateTime.now(),
-                brokerCount = clusterDescription.size,
-                topicCount = topicList.size
-            )
-        } else {
-
-
-            connection.markAsDisconnected()
-            connectionRepository.save(connection)
-            
-            ConnectionStatus(
-                connectionId = id,
-                status = ConnectionStatusType.DISCONNECTED,
-                lastChecked = LocalDateTime.now(),
-                errorMessage = "Connection test failed"
+                errorMessage = e.message
             )
         }
-    } catch (e: Exception) {
-        logger.error("Connection status check failed for ${connection.name.value}: ${e.message}", e)
-
-        connection.markAsError(e.message)
-        connectionRepository.save(connection)
-
-        val history = ConnectionHistory.create(
-            connectionId = connection.getId(),
-            eventType = "CONNECTION_STATUS_CHECK_FAILED",
-            description = "연결 상태 확인 실패: ${e.message}",
-            details = mapOf(
-                "status" to "ERROR",
-                "error" to (e.message ?: "Unknown error")
-            )
-        )
-        connectionHistoryRepository.save(history)
-
-        activityManagementUseCase.logConnectionOffline(
-            connectionName = connection.name.value,
-            connectionId = connection.getId().value
-        )
-
-        ConnectionStatus(
-            connectionId = id,
-            status = ConnectionStatusType.ERROR,
-            lastChecked = LocalDateTime.now(),
-            errorMessage = e.message
-        )
     }
-}
 
     override suspend fun refreshAllConnectionStatuses() {
         val startTime = LocalDateTime.now()

@@ -4,7 +4,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
+import org.junit.jupiter.params.provider.MethodSource
+import java.util.stream.Stream
 
 class ConnectionNameTest {
 
@@ -61,13 +62,7 @@ class ConnectionNameTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = [
-        "test@connection",
-        "kafka#prod",
-        "local$dev",
-        "test*connection",
-        "kafka+prod"
-    ])
+    @MethodSource("invalidConnectionNames")
     fun `특수문자가 포함된 연결 이름을 생성할 수 없다`(invalidName: String) {
         // when & then
         assertThatThrownBy { ConnectionName(invalidName) }
@@ -169,5 +164,18 @@ class ConnectionNameTest {
         // when & then
         assertThat(connectionName1).isNotEqualTo(connectionName2)
         assertThat(connectionName1.hashCode()).isNotEqualTo(connectionName2.hashCode())
+    }
+
+    companion object {
+        @JvmStatic
+        fun invalidConnectionNames(): Stream<String> {
+            return Stream.of(
+                "test@connection",
+                "kafka#prod",
+                "local\$dev",
+                "test*connection",
+                "kafka+prod"
+            )
+        }
     }
 }

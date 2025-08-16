@@ -22,11 +22,6 @@ import com.sleekydz86.kopanda.application.dto.response.PerformanceMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.TopicHealthDto
 import com.sleekydz86.kopanda.application.dto.response.TopicMetricsDto
 
-import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
-import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
-import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
-
-
 interface KafkaRepository {
     suspend fun getTopics(connection: Connection): List<Topic>
     suspend fun getTopicDetails(connection: Connection, topicName: TopicName): Topic?

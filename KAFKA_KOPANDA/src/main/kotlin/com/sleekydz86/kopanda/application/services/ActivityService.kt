@@ -44,11 +44,7 @@ class ActivityService(
 
     override suspend fun logError(message: String, connectionId: String?) {
         val activity = Activity(
-
-            type = ActivityType.ERROR_OCCURRED,
-
             type = DomainActivityType("ERROR_OCCURRED"),
-
             title = ActivityTitle("오류 발생"),
             message = ActivityMessage(message),
             connectionId = connectionId
@@ -59,9 +55,6 @@ class ActivityService(
     private fun Activity.toActivityDto(): ActivityDto {
         return ActivityDto(
             id = this.getId().value,
-
-            type = this.type,
-
             type = when (this.type.value) {
                 "CONNECTION_CREATED" -> ActivityType.CONNECTION_CREATED
                 "TOPIC_CREATED" -> ActivityType.TOPIC_CREATED
@@ -69,7 +62,6 @@ class ActivityService(
                 "ERROR_OCCURRED" -> ActivityType.ERROR_OCCURRED
                 else -> ActivityType.ERROR_OCCURRED
             },
-
             title = this.title.value,
             message = this.message.value,
             connectionId = this.connectionId,
@@ -79,16 +71,17 @@ class ActivityService(
         )
     }
 
-    private fun getIconForType(type: ActivityType): String {
-        return when (type) {
-            ActivityType.CONNECTION_CREATED -> "🔗"
-            ActivityType.TOPIC_CREATED -> "📝"
-            ActivityType.CONNECTION_OFFLINE -> "⚠️"
-            ActivityType.ERROR_OCCURRED -> "❌"
-            ActivityType.CONNECTION_UPDATED -> "🔄"
-            ActivityType.CONNECTION_DELETED -> "🗑️"
-            ActivityType.MESSAGE_SENT -> "📤"
-            ActivityType.TOPIC_DELETED -> "️"
+    private fun getIconForType(type: DomainActivityType): String {
+        return when (type.value) {
+            "CONNECTION_CREATED" -> "🔗"
+            "TOPIC_CREATED" -> "📝"
+            "CONNECTION_OFFLINE" -> "⚠️"
+            "ERROR_OCCURRED" -> "❌"
+            "CONNECTION_UPDATED" -> "🔄"
+            "CONNECTION_DELETED" -> "🗑️"
+            "MESSAGE_SENT" -> "📤"
+            "TOPIC_DELETED" -> "🗑️"
+            else -> "❓"
         }
     }
 }

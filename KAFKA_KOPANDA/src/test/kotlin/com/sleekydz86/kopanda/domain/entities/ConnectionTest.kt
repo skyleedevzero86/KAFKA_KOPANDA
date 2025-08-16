@@ -1,10 +1,7 @@
 package com.sleekydz86.kopanda.domain.entities
 
-import com.sleekydz86.kopanda.domain.valueobjects.names.ConnectionName
-import com.sleekydz86.kopanda.domain.valueobjects.network.Host
-import com.sleekydz86.kopanda.domain.valueobjects.network.Port
+import com.sleekydz86.kopanda.domain.events.ConnectionCreatedEvent
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 

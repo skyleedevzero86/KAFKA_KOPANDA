@@ -1,7 +1,6 @@
 package com.sleekydz86.kopanda.domain.entities
 
-
-import com.sleekydz86.kopanda.application.dto.enums.ActivityType
+import com.sleekydz86.kopanda.application.dto.enums.ActivityType as ApplicationActivityType
 import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ActivityId
 import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityMessage
@@ -29,7 +28,7 @@ class Activity(
     companion object {
         fun createConnectionCreated(connectionName: String, connectionId: String): Activity {
             return Activity(
-                type = ActivityType.CONNECTION_CREATED,
+                type = ActivityType("CONNECTION_CREATED"),
                 title = ActivityTitle("새 연결이 생성되었습니다"),
                 message = ActivityMessage("새 연결이 생성되었습니다: $connectionName"),
                 connectionId = connectionId
@@ -38,7 +37,7 @@ class Activity(
 
         fun createTopicCreated(topicName: String): Activity {
             return Activity(
-                type = ActivityType.TOPIC_CREATED,
+                type = ActivityType("TOPIC_CREATED"),
                 title = ActivityTitle("토픽이 생성되었습니다"),
                 message = ActivityMessage("토픽 \"$topicName\"이 생성되었습니다"),
                 topicName = topicName
@@ -47,7 +46,7 @@ class Activity(
 
         fun createConnectionOffline(connectionName: String, connectionId: String): Activity {
             return Activity(
-                type = ActivityType.CONNECTION_OFFLINE,
+                type = ActivityType("CONNECTION_OFFLINE"),
                 title = ActivityTitle("연결이 오프라인 상태가 되었습니다"),
                 message = ActivityMessage("연결 \"$connectionName\"이 오프라인 상태가 되었습니다"),
                 connectionId = connectionId
@@ -56,7 +55,7 @@ class Activity(
 
         fun createTopicDeleted(topicName: String): Activity {
             return Activity(
-                type = ActivityType.TOPIC_DELETED,
+                type = ActivityType("TOPIC_DELETED"),
                 title = ActivityTitle("토픽이 삭제되었습니다"),
                 message = ActivityMessage("토픽 \"$topicName\"이 삭제되었습니다"),
                 topicName = topicName
