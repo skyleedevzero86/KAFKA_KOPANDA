@@ -1,6 +1,8 @@
 package com.sleekydz86.kopanda.domain.entities
 
+
 import com.sleekydz86.kopanda.application.dto.enums.ActivityType
+import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ActivityId
 import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityMessage
 import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityTitle

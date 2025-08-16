@@ -5,6 +5,9 @@ import com.sleekydz86.kopanda.domain.entities.Activity
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ActivityId
 import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityMessage
 import com.sleekydz86.kopanda.domain.valueobjects.names.ActivityTitle
+
+import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType
+
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
