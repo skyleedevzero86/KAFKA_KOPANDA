@@ -1,7 +1,7 @@
 package com.sleekydz86.kopanda.domain.entities
 
 import com.sleekydz86.kopanda.domain.valueobjects.ids.BrokerId
-import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
+import com.sleekydz86.kopanda.domain.events.TopicDeletedEvent
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

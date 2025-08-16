@@ -276,7 +276,7 @@ class TopicController(
                     results.add("✅ $topicName 생성 성공")
                     logger.info("내부 토픽 생성 성공: $topicName")
                 } catch (e: Exception) {
-                    results.add(" $topicName 생성 실패: ${e.message}")
+                    results.add("❌ $topicName 생성 실패: ${e.message}")
                     logger.warn("내부 토픽 생성 실패: $topicName - ${e.message}")
                 }
             }
@@ -285,8 +285,8 @@ class TopicController(
                 "message" to "테스트 내부 토픽 생성 완료",
                 "results" to results,
                 "total" to internalTopics.size,
-                "successful" to results.count { it.startsWith("ok") },
-                "failed" to results.count { it.startsWith("x") }
+                "successful" to results.count { it.startsWith("✅") },
+                "failed" to results.count { it.startsWith("❌") }
             )
             
             logger.info("테스트 내부 토픽 생성 완료: $connectionId")

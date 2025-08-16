@@ -160,7 +160,7 @@ class PortTest {
 
     @Test
     fun `포트 범위 경계값을 테스트한다`() {
-        // given - 경계값들
+        // given
         val boundaryPorts = listOf(1, 65535)
 
         // when & then

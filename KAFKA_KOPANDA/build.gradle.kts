@@ -71,6 +71,7 @@ dependencies {
 	testImplementation("io.github.bonigarcia:webdrivermanager:5.6.2")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+	testImplementation("org.jetbrains.kotlin:kotlin-test")
 
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.4.0")
 	implementation("io.swagger.core.v3:swagger-annotations:2.2.20")

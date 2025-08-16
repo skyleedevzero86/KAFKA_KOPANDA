@@ -544,21 +544,47 @@ class ConnectionController(
         }
     }
     @PostMapping("/{connectionId}/consumer-groups/test")
-suspend fun createTestConsumerGroup(
-    @PathVariable connectionId: String,
-    @RequestParam topicName: String
-): ResponseEntity<ConsumerGroupDto> {
-    logger.info("테스트 컨슈머 그룹 생성 요청: connectionId=$connectionId, topicName=$topicName")
-    
-    return try {
-        val consumerGroup = kafkaManagementUseCase.createTestConsumerGroup(connectionId, topicName)
-        ResponseEntity.ok(consumerGroup)
-    } catch (e: DomainException) {
-        logger.warn("테스트 컨슈머 그룹 생성 실패: ${e.message}")
-        ResponseEntity.badRequest().build()
-    } catch (e: Exception) {
-        logger.error("테스트 컨슈머 그룹 생성 중 오류 발생", e)
-        ResponseEntity.internalServerError().build()
+    @Operation(
+        summary = "테스트 컨슈머 그룹 생성",
+        description = "테스트용 컨슈머 그룹을 생성합니다."
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "테스트 컨슈머 그룹 생성 성공",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ConsumerGroupDto::class)
+                )]
+            ),
+            ApiResponse(
+                responseCode = "400",
+                description = "잘못된 요청"
+            ),
+            ApiResponse(
+                responseCode = "500",
+                description = "서버 내부 오류"
+            )
+        ]
+    )
+    suspend fun createTestConsumerGroup(
+        @Parameter(description = "연결 ID", required = true)
+        @PathVariable connectionId: String,
+        @Parameter(description = "토픽 이름", required = true)
+        @RequestParam topicName: String
+    ): ResponseEntity<ConsumerGroupDto> {
+        logger.info("테스트 컨슈머 그룹 생성 요청: connectionId=$connectionId, topicName=$topicName")
+        
+        return try {
+            val consumerGroup = kafkaManagementUseCase.createTestConsumerGroup(connectionId, topicName)
+            ResponseEntity.ok(consumerGroup)
+        } catch (e: DomainException) {
+            logger.warn("테스트 컨슈머 그룹 생성 실패: ${e.message}")
+            ResponseEntity.badRequest().build()
+        } catch (e: Exception) {
+            logger.error("테스트 컨슈머 그룹 생성 중 오류 발생", e)
+            ResponseEntity.internalServerError().build()
+        }
     }
-}
 }

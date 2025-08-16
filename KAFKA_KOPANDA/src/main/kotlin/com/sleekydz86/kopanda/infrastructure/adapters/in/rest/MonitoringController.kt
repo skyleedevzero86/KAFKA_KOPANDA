@@ -1236,7 +1236,6 @@ class MonitoringController(
         )
         @PathVariable connectionId: String
     ): ResponseEntity<TopicMetricsDto> {
-        val connection = connectionManagementUseCase.getConnection(connectionId)
         val topicMetrics = kafkaManagementUseCase.getTopicMetrics(connectionId)
         return ResponseEntity.ok(topicMetrics)
     }

@@ -4,7 +4,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
+import org.junit.jupiter.params.provider.MethodSource
+import java.util.stream.Stream
 
 class HostTest {
 
@@ -49,31 +50,7 @@ class HostTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = [
-        "host@example.com",
-        "host#example.com",
-        "host$example.com",
-        "host*example.com",
-        "host+example.com",
-        "host(example.com",
-        "host)example.com",
-        "host[example.com",
-        "host]example.com",
-        "host{example.com",
-        "host}example.com",
-        "host|example.com",
-        "host\\example.com",
-        "host/example.com",
-        "host:example.com",
-        "host;example.com",
-        "host<example.com",
-        "host>example.com",
-        "host=example.com",
-        "host?example.com",
-        "host!example.com",
-        "host~example.com",
-        "host`example.com"
-    ])
+    @MethodSource("invalidHostsWithSpecialCharacters")
     fun `특수문자가 포함된 호스트를 생성할 수 없다`(invalidHost: String) {
         // when & then
         assertThatThrownBy { Host(invalidHost) }
@@ -168,8 +145,6 @@ class HostTest {
             val hostValue = Host(host)
             assertThat(hostValue.isValid()).isTrue()
         }
-
-        // invalidHosts는 Host 생성자에서 이미 검증되므로 테스트하지 않음
     }
 
     @Test
@@ -206,5 +181,36 @@ class HostTest {
         // when & then
         assertThat(host1).isNotEqualTo(host2)
         assertThat(host1.hashCode()).isNotEqualTo(host2.hashCode())
+    }
+
+    companion object {
+        @JvmStatic
+        fun invalidHostsWithSpecialCharacters(): Stream<String> {
+            return Stream.of(
+                "host@example.com",
+                "host#example.com",
+                "host\$example.com",
+                "host*example.com",
+                "host+example.com",
+                "host(example.com",
+                "host)example.com",
+                "host[example.com",
+                "host]example.com",
+                "host{example.com",
+                "host}example.com",
+                "host|example.com",
+                "host\\example.com",
+                "host/example.com",
+                "host:example.com",
+                "host;example.com",
+                "host<example.com",
+                "host>example.com",
+                "host=example.com",
+                "host?example.com",
+                "host!example.com",
+                "host~example.com",
+                "host`example.com"
+            )
+        }
     }
 }

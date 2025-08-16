@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import java.time.LocalDateTime
+import com.sleekydz86.kopanda.application.dto.common.BrokerInfo
 
 class ConnectionControllerTest {
 

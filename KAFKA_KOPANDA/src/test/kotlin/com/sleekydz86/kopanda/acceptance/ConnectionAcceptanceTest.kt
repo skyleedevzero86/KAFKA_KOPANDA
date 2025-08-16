@@ -1,6 +1,8 @@
 package com.sleekydz86.kopanda.acceptance
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.sleekydz86.kopanda.application.dto.request.CreateConnectionRequest
 import com.sleekydz86.kopanda.application.dto.request.UpdateConnectionRequest
 import com.sleekydz86.kopanda.application.dto.response.ConnectionDto
@@ -62,14 +64,14 @@ class ConnectionAcceptanceTest {
 
     @BeforeEach
     fun setUp() {
-        objectMapper = ObjectMapper()
+        objectMapper = jacksonObjectMapper()
         RestAssured.port = port
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails()
     }
 
     @Test
     fun `사용자는 Kafka 연결을 생성하고 관리할 수 있다`() {
-        // given - 사용자가 새로운 Kafka 연결을 생성하려고 함
+        // given
         val createRequest = CreateConnectionRequest(
             name = "production-kafka",
             host = "kafka.prod.com",
@@ -80,7 +82,7 @@ class ConnectionAcceptanceTest {
             password = "secure-password"
         )
 
-        // when - 연결 생성 API 호출
+        // when
         val createResponse = RestAssured.given()
             .contentType(ContentType.JSON)
             .body(createRequest)
@@ -91,8 +93,8 @@ class ConnectionAcceptanceTest {
             .extract()
             .response()
 
-        // then - 연결이 성공적으로 생성됨
-        val createdConnection = objectMapper.readValue(createResponse.body.asString(), ConnectionDto::class.java)
+        // then
+        val createdConnection = objectMapper.readValue<ConnectionDto>(createResponse.body.asString())
         assertNotNull(createdConnection.id)
         assertEquals("production-kafka", createdConnection.name)
         assertEquals("kafka.prod.com", createdConnection.host)
@@ -100,7 +102,7 @@ class ConnectionAcceptanceTest {
         assertTrue(createdConnection.sslEnabled)
         assertTrue(createdConnection.saslEnabled)
 
-        // when - 생성된 연결 조회
+        // when
         val getResponse = RestAssured.given()
             .`when`()
             .get("/connections/${createdConnection.id}")
@@ -109,12 +111,12 @@ class ConnectionAcceptanceTest {
             .extract()
             .response()
 
-        // then - 연결 정보가 올바르게 반환됨
-        val retrievedConnection = objectMapper.readValue(getResponse.body.asString(), ConnectionDto::class.java)
+        // then
+        val retrievedConnection = objectMapper.readValue<ConnectionDto>(getResponse.body.asString())
         assertEquals(createdConnection.id, retrievedConnection.id)
         assertEquals(createdConnection.name, retrievedConnection.name)
 
-        // when - 연결 정보 수정
+        // when
         val updateRequest = UpdateConnectionRequest(
             name = "updated-production-kafka",
             host = "kafka.prod.updated.com",
@@ -131,13 +133,13 @@ class ConnectionAcceptanceTest {
             .extract()
             .response()
 
-        // then - 연결 정보가 성공적으로 수정됨
-        val updatedConnection = objectMapper.readValue(updateResponse.body.asString(), ConnectionDto::class.java)
+        // then
+        val updatedConnection = objectMapper.readValue<ConnectionDto>(updateResponse.body.asString())
         assertEquals("updated-production-kafka", updatedConnection.name)
         assertEquals("kafka.prod.updated.com", updatedConnection.host)
         assertEquals(9093, updatedConnection.port)
 
-        // when - 연결 목록 조회
+        // when
         val listResponse = RestAssured.given()
             .`when`()
             .get("/connections")
@@ -146,18 +148,18 @@ class ConnectionAcceptanceTest {
             .extract()
             .response()
 
-        // then - 수정된 연결이 목록에 포함됨
-        val connections = objectMapper.readValue(listResponse.body.asString(), Array<ConnectionDto>::class.java)
+        // then
+        val connections = objectMapper.readValue<Array<ConnectionDto>>(listResponse.body.asString())
         assertTrue(connections.any { it.id == createdConnection.id })
         assertTrue(connections.any { it.name == "updated-production-kafka" })
     }
 
     @Test
     fun `사용자는 연결 상태를 모니터링할 수 있다`() {
-        // given - 테스트용 연결 생성
+        // given
         val connection = createTestConnection("monitoring-test")
 
-        // when - 연결 상태 조회
+        // when
         val statusResponse = RestAssured.given()
             .`when`()
             .get("/connections/${connection.id}/status")
@@ -166,13 +168,13 @@ class ConnectionAcceptanceTest {
             .extract()
             .response()
 
-        // then - 연결 상태 정보가 반환됨
-        val status = objectMapper.readValue(statusResponse.body.asString(), Map::class.java)
+        // then
+        val status = objectMapper.readValue<Map<String, Any>>(statusResponse.body.asString())
         assertNotNull(status["connectionId"])
         assertNotNull(status["status"])
         assertNotNull(status["lastChecked"])
 
-        // when - 연결 헬스 조회
+        // when
         val healthResponse = RestAssured.given()
             .`when`()
             .get("/connections/${connection.id}/health")
@@ -181,13 +183,13 @@ class ConnectionAcceptanceTest {
             .extract()
             .response()
 
-        // then - 연결 헬스 정보가 반환됨
-        val health = objectMapper.readValue(healthResponse.body.asString(), Map::class.java)
+        // then
+        val health = objectMapper.readValue<Map<String, Any>>(healthResponse.body.asString())
         assertNotNull(health["connectionId"])
         assertNotNull(health["isHealthy"])
         assertNotNull(health["healthScore"])
 
-        // when - 연결 핑 테스트
+        // when
         val pingResponse = RestAssured.given()
             .`when`()
             .get("/connections/${connection.id}/ping")
@@ -196,8 +198,8 @@ class ConnectionAcceptanceTest {
             .extract()
             .response()
 
-        // then - 핑 결과가 반환됨
-        val ping = objectMapper.readValue(pingResponse.body.asString(), Map::class.java)
+        // then
+        val ping = objectMapper.readValue<Map<String, Any>>(pingResponse.body.asString())
         assertNotNull(ping["connectionId"])
         assertNotNull(ping["isAlive"])
         assertNotNull(ping["responseTime"])
@@ -205,7 +207,7 @@ class ConnectionAcceptanceTest {
 
     @Test
     fun `사용자는 연결을 테스트할 수 있다`() {
-        // given - 테스트할 연결 정보
+        // given
         val testRequest = CreateConnectionRequest(
             name = "test-connection",
             host = "localhost",
@@ -214,7 +216,7 @@ class ConnectionAcceptanceTest {
             saslEnabled = false
         )
 
-        // when - 연결 테스트 수행
+        // when
         val testResponse = RestAssured.given()
             .contentType(ContentType.JSON)
             .body(testRequest)
@@ -225,55 +227,50 @@ class ConnectionAcceptanceTest {
             .extract()
             .response()
 
-        // then - 테스트 결과가 반환됨
-        val testResult = objectMapper.readValue(testResponse.body.asString(), Map::class.java)
+        // then
+        val testResult = objectMapper.readValue<Map<String, Any>>(testResponse.body.asString())
         assertNotNull(testResult["success"])
         assertNotNull(testResult["message"])
     }
 
     @Test
     fun `사용자는 연결 히스토리를 조회할 수 있다`() {
-        // given - 테스트용 연결 생성
+        // given
         val connection = createTestConnection("history-test")
 
-        // when - 연결 히스토리 조회
+        // when
         val historyResponse = RestAssured.given()
+            .queryParam("limit", "10")
             .`when`()
             .get("/connections/${connection.id}/history")
-            .param("limit", "10")
             .then()
             .statusCode(200)
             .extract()
             .response()
 
-        // then - 연결 히스토리가 반환됨
-        val history = objectMapper.readValue(historyResponse.body.asString(), Array<Map<String, Any>>::class.java)
+        // then
+        val history = objectMapper.readValue<List<Map<String, Any>>>(historyResponse.body.asString())
         assertTrue(history.isNotEmpty())
         assertTrue(history.any { it["eventType"] == "CONNECTION_CREATED" })
     }
 
     @Test
     fun `사용자는 모든 연결 상태를 새로고침할 수 있다`() {
-        // given - 테스트용 연결들 생성
+        // given
         createTestConnection("refresh-test-1")
         createTestConnection("refresh-test-2")
 
-        // when - 모든 연결 상태 새로고침
-        val refreshResponse = RestAssured.given()
+        // when & then
+        RestAssured.given()
             .`when`()
             .post("/connections/refresh-status")
             .then()
             .statusCode(200)
-            .extract()
-            .response()
-
-        // then - 새로고침이 성공적으로 완료됨
-        assertEquals(200, refreshResponse.statusCode())
     }
 
     @Test
     fun `사용자는 잘못된 연결 정보로 생성할 수 없다`() {
-        // given - 잘못된 연결 생성 요청 (빈 이름, 잘못된 포트)
+        // given
         val invalidRequest = CreateConnectionRequest(
             name = "",
             host = "",
@@ -282,7 +279,7 @@ class ConnectionAcceptanceTest {
             saslEnabled = false
         )
 
-        // when & then - 400 Bad Request 반환
+        // when & then
         RestAssured.given()
             .contentType(ContentType.JSON)
             .body(invalidRequest)
@@ -294,17 +291,17 @@ class ConnectionAcceptanceTest {
 
     @Test
     fun `사용자는 중복된 연결 이름으로 생성할 수 없다`() {
-        // given - 첫 번째 연결 생성
+        // given
         val firstConnection = createTestConnection("duplicate-test")
 
-        // when - 동일한 이름으로 두 번째 연결 생성 시도
+        // when
         val duplicateRequest = CreateConnectionRequest(
             name = "duplicate-test",
             host = "other-host",
             port = 9093
         )
 
-        // then - 400 Bad Request 반환
+        // then
         RestAssured.given()
             .contentType(ContentType.JSON)
             .body(duplicateRequest)
@@ -316,10 +313,10 @@ class ConnectionAcceptanceTest {
 
     @Test
     fun `사용자는 존재하지 않는 연결을 조회할 수 없다`() {
-        // given - 존재하지 않는 연결 ID
+        // given
         val nonExistentId = "non-existent-connection-id"
 
-        // when & then - 404 Not Found 반환
+        // when & then
         RestAssured.given()
             .`when`()
             .get("/connections/$nonExistentId")
@@ -346,6 +343,6 @@ class ConnectionAcceptanceTest {
             .extract()
             .response()
 
-        return objectMapper.readValue(response.body.asString(), ConnectionDto::class.java)
+        return objectMapper.readValue<ConnectionDto>(response.body.asString())
     }
 }
