@@ -3,7 +3,6 @@
     <div class="header">
       <h2>토픽 목록</h2>
       <div class="header-actions">
-        
         <div class="topic-filters">
           <el-switch
             v-model="showInternalTopics"
@@ -22,8 +21,23 @@
         </el-button>
       </div>
     </div>
-
-   
+    <div v-if="activeConnection" class="current-connection">
+      <el-alert
+        :title="`현재 연결: ${activeConnection.name} (${activeConnection.host}:${activeConnection.port})`"
+        type="info"
+        :closable="false"
+        show-icon
+      />
+    </div>
+    <div v-if="!activeConnection" class="no-connection">
+      <el-alert
+        title="연결이 선택되지 않았습니다"
+        description="토픽을 생성하려면 먼저 연결을 선택해주세요"
+        type="warning"
+        :closable="false"
+        show-icon
+      />
+    </div>
     <div v-if="showInternalTopics" class="internal-topics-section">
       <el-card class="internal-topics-card">
         <template #header>
@@ -47,63 +61,40 @@
           <div v-else class="no-internal-topics">
             <p>내부 토픽이 발견되지 않았습니다. Kafka 클러스터가 아직 활동하지 않았을 수 있습니다.</p>
           </div>
-          
-          <el-collapse v-if="showDebugSection">
-            <el-collapse-item title="고급 옵션 (개발용)" name="debug">
-              <el-alert 
-                title="주의" 
-                type="warning" 
-                :closable="false"
-                description="내부 토픽은 일반적으로 Kafka에서 자동으로 관리됩니다. 수동 생성은 권장되지 않습니다."
-                show-icon
-              />
-              <br>
-              <el-button-group>
-                <el-button size="small" @click="attemptCreateInternalTopic('__consumer_offsets')" :disabled="loading">
-                  __consumer_offsets 생성 시도
-                </el-button>
-                <el-button size="small" @click="attemptCreateInternalTopic('__transaction_state')" :disabled="loading">
-                  __transaction_state 생성 시도
-                </el-button>
-                <el-button size="small" @click="attemptCreateInternalTopic('__schema_registry')" :disabled="loading">
-                  __schema_registry 생성 시도
-                </el-button>
-              </el-button-group>
-            </el-collapse-item>
-          </el-collapse>
         </div>
       </el-card>
     </div>
-
     <div v-if="loading" class="loading-container">
       <LoadingSpinner />
     </div>
-    
     <div v-else-if="error" class="error-container">
-      <ErrorMessage :message="error" />
+      <ErrorMessage :message="error" @retry="refreshTopics" />
     </div>
-    
     <div v-else-if="filteredTopics.length === 0" class="empty-state">
-      <p>토픽이 없습니다.</p>
+      <el-empty description="토픽이 없습니다">
+        <el-button type="primary" @click="showCreateForm = true" :disabled="!activeConnection">
+          첫 번째 토픽 만들기
+        </el-button>
+      </el-empty>
     </div>
-    
     <div v-else class="topics-grid">
       <TopicCard
         v-for="topic in filteredTopics"
         :key="topic.name"
         :topic="topic"
         @delete="handleDeleteTopic"
+        @select="handleTopicSelect"
       />
     </div>
     <TopicForm
       v-model="showCreateForm"
-      @created="handleTopicCreated"
+      :connection-id="activeConnection?.id"
+      @submit="handleTopicCreated"
     />
-    
     <ConfirmDialog
       v-model="showDeleteDialog"
       title="토픽 삭제"
-      message="정말로 이 토픽을 삭제하시겠습니까?"
+      :message="`'${deletingTopicName}' 토픽을 삭제하시겠습니까?`"
       @confirm="confirmDeleteTopic"
     />
   </div>
@@ -112,7 +103,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { Plus, Refresh } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { useTopicStore } from '@/stores/topic'
 import { useConnectionStore } from '@/stores/connection'
 import type { TopicDto, CreateTopicRequest } from '@/types/topic'
@@ -131,13 +122,14 @@ const showDeleteDialog = ref(false)
 const deletingTopicName = ref('')
 const showInternalTopics = ref(true)
 const internalTopicsStatus = ref<string[]>([])
-const showDebugSection = ref(false) 
 
 const { topics, loading, error } = storeToRefs(topicStore)
 const { connections, currentConnection } = storeToRefs(connectionStore)
 
 const activeConnection = computed(() => {
-  return currentConnection?.value || connections.value?.[0] || null
+  const connection = currentConnection?.value || connections.value?.[0] || null
+  console.log('Active connection:', connection)
+  return connection
 })
 
 const filteredTopics = computed(() => {
@@ -150,7 +142,6 @@ const filteredTopics = computed(() => {
 const handleInternalTopicsToggle = async (value: boolean) => {
   showInternalTopics.value = value
   ElMessage.success(value ? '내부 토픽이 표시됩니다' : '내부 토픽이 숨겨집니다')
-  
   await refreshTopics()
 }
 
@@ -168,80 +159,31 @@ const checkForInternalTopics = async () => {
     
     if (status.found.length > 0) {
       ElMessage.success(`${status.found.length}개의 내부 토픽을 발견했습니다`)
-      
-      if (status.missing.length > 0) {
-        ElMessage.info(`누락된 내부 토픽: ${status.missing.join(', ')}`)
-      }
     } else {
-      ElMessage.info('내부 토픽이 발견되지 않았습니다. Kafka 클러스터가 아직 활동하지 않았을 수 있습니다.')
+      ElMessage.info('내부 토픽이 발견되지 않았습니다.')
     }
   } catch (err: any) {
     console.error('내부 토픽 확인 실패:', err)
-    
-    if (err.message?.includes('DESCRIBE_TOPIC_PARTITIONS') || 
-        err.message?.includes('UnsupportedVersionException')) {
-      ElMessage.warning('Kafka 버전 호환성 문제로 일부 기능이 제한됩니다. Kafka 2.8.0 이상을 권장합니다.')
-      internalTopicsStatus.value = []
-    } else {
-      ElMessage.error(`내부 토픽 확인 실패: ${err.message || 'Unknown error'}`)
-    }
-  }
-}
-
-const attemptCreateInternalTopic = async (topicName: string) => {
-  const connection = activeConnection.value
-  
-  if (!connection) {
-    ElMessage.error('연결을 선택해주세요')
-    return
-  }
-
-  try {
-    await ElMessageBox.confirm(
-      `내부 토픽 '${topicName}'을 수동으로 생성하려고 합니다. 이는 권장되지 않으며 Kafka 클러스터에 문제를 일으킬 수 있습니다. 계속하시겠습니까?`,
-      '경고',
-      {
-        confirmButtonText: '계속',
-        cancelButtonText: '취소',
-        type: 'warning',
-      }
-    )
-  } catch {
-    return 
-  }
-
-  try {
-    const request: CreateTopicRequest = {
-      name: topicName,
-      partitions: 1,
-      replicationFactor: 1,
-      config: {
-        'cleanup.policy': 'delete',
-        'retention.ms': '604800000'
-      }
-    }
-    
-    await topicStore.createTopic(connection.id, request)
-    ElMessage.success(`내부 토픽 '${topicName}'이 생성되었습니다`)
-    
-    await checkForInternalTopics()
-  } catch (err: any) {
-    console.error('Internal topic creation failed:', err)
-    
-    if (err.message.includes('자동으로 관리됩니다')) {
-      ElMessage.warning(err.message)
-    } else {
-      ElMessage.error(`내부 토픽 생성 실패: ${err.message}`)
-    }
+    ElMessage.error(`내부 토픽 확인 실패: ${err.message || 'Unknown error'}`)
   }
 }
 
 const refreshTopics = async () => {
   const connection = activeConnection.value
   if (connection) {
-    await topicStore.fetchTopics(connection.id, showInternalTopics.value)
-    await checkForInternalTopics()
+    try {
+      await topicStore.fetchTopics(connection.id, showInternalTopics.value)
+      await checkForInternalTopics()
+      ElMessage.success('토픽 목록이 새로고침되었습니다')
+    } catch (error) {
+      console.error('토픽 새로고침 실패:', error)
+      ElMessage.error('토픽 목록 새로고침에 실패했습니다')
+    }
   }
+}
+
+const handleTopicSelect = (topic: TopicDto) => {
+  console.log('토픽 선택됨:', topic)
 }
 
 const handleDeleteTopic = (topicName: string) => {
@@ -258,11 +200,18 @@ const handleTopicCreated = async (data: CreateTopicRequest) => {
   }
 
   try {
+    console.log('토픽 생성 시작:', { connectionId: connection.id, topicData: data })
+    
     await topicStore.createTopic(connection.id, data)
+    
+    ElMessage.success('토픽이 성공적으로 생성되었습니다')
     showCreateForm.value = false
-    ElMessage.success('토픽이 생성되었습니다')
+    
+    await refreshTopics()
+    
   } catch (err: any) {
-    console.error('Topic creation failed:', err)
+    console.error('토픽 생성 실패:', err)
+    ElMessage.error(`토픽 생성에 실패했습니다: ${err.message || 'Unknown error'}`)
   }
 }
 
@@ -279,12 +228,17 @@ const confirmDeleteTopic = async () => {
     showDeleteDialog.value = false
     deletingTopicName.value = ''
     ElMessage.success('토픽이 삭제되었습니다')
+    
+    await refreshTopics()
+    
   } catch (err: any) {
-    console.error('Topic deletion failed:', err)
+    console.error('토픽 삭제 실패:', err)
+    ElMessage.error(`토픽 삭제에 실패했습니다: ${err.message || 'Unknown error'}`)
   }
 }
 
 onMounted(async () => {
+  console.log('TopicList 컴포넌트 마운트됨')
   await connectionStore.fetchConnections()
   const connection = activeConnection.value
   if (connection) {
@@ -295,6 +249,7 @@ onMounted(async () => {
 
 watch(activeConnection, async (newConnection) => {
   if (newConnection) {
+    console.log('연결 변경됨:', newConnection.name)
     await topicStore.fetchTopics(newConnection.id, showInternalTopics.value)
     await checkForInternalTopics()
   }
@@ -332,6 +287,18 @@ watch(activeConnection, async (newConnection) => {
   background-color: #f5f7fa;
   border-radius: 6px;
   border: 1px solid #e4e7ed;
+}
+
+.current-connection {
+  margin-bottom: 16px;
+}
+
+.no-connection,
+.loading-container,
+.error-container,
+.empty-container {
+  padding: 40px;
+  text-align: center;
 }
 
 .internal-topics-section {
@@ -396,24 +363,6 @@ watch(activeConnection, async (newConnection) => {
   margin: 0;
   color: #6c757d;
   font-style: italic;
-}
-
-.internal-topics-content .el-button-group {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.current-connection {
-  margin-bottom: 16px;
-}
-
-.no-connection,
-.loading-container,
-.error-container,
-.empty-container {
-  padding: 40px;
-  text-align: center;
 }
 
 .topics-grid {

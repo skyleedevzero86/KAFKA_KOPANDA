@@ -14,12 +14,28 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading-container">
+    <div v-if="!currentConnection" class="no-connection">
+      <el-empty description="연결을 선택해주세요">
+        <el-button type="primary" @click="$router.push('/connections')">
+          연결 관리로 이동
+        </el-button>
+      </el-empty>
+    </div>
+
+    <div v-else-if="loading" class="loading-container">
       <LoadingSpinner message="모니터링 데이터를 불러오는 중..." />
     </div>
 
     <div v-else-if="error" class="error-container">
       <ErrorMessage :message="error" @close="clearError" />
+    </div>
+
+    <div v-else-if="monitoringTopics.length === 0" class="no-topics">
+      <el-empty description="모니터링할 토픽이 없습니다">
+        <el-button type="primary" @click="refreshMonitoring">
+          새로고침
+        </el-button>
+      </el-empty>
     </div>
 
     <div v-else class="monitoring-content">
@@ -150,40 +166,7 @@
       </el-card>
 
       <el-card class="alerts-card">
-        <template #header>
-          <span>모니터링 알림</span>
-          <el-button size="small" @click="clearAllAlerts" :disabled="alerts.length === 0">
-            모든 알림 지우기
-          </el-button>
-        </template>
-        
-        <div v-if="alerts.length === 0" class="no-alerts">
-          <el-empty description="현재 알림이 없습니다" :image-size="60" />
-        </div>
-        
-        <div v-else class="alerts-list">
-          <div 
-            v-for="alert in alerts" 
-            :key="alert.id"
-            class="alert-item"
-            :class="`alert-${alert.type}`"
-          >
-            <div class="alert-content">
-              <div class="alert-header">
-                <span class="alert-title">{{ alert.title }}</span>
-                <span class="alert-time">{{ formatTime(alert.timestamp) }}</span>
-              </div>
-              <p class="alert-message">{{ alert.message }}</p>
-            </div>
-            <el-button 
-              size="small" 
-              type="text" 
-              @click="removeAlert(alert.id)"
-            >
-              <el-icon><CircleClose /></el-icon>
-            </el-button>
-          </div>
-        </div>
+        <AlertList />
       </el-card>
     </div>
 
@@ -193,7 +176,10 @@
       width="900px"
       :before-close="() => showDetailDialog = false"
     >
-      <TopicDetailView :topic="selectedTopic" />
+      <TopicDetailView v-if="selectedTopic" :topic="selectedTopic" />
+      <div v-else class="no-topic-selected">
+        <el-empty description="선택된 토픽이 없습니다." />
+      </div>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="showDetailDialog = false">닫기</el-button>
@@ -219,15 +205,17 @@ import {
   Refresh, 
   VideoPlay, 
   VideoPause, 
-  View, 
-  CircleClose
+  View
 } from '@element-plus/icons-vue'
-import type { TopicDto, TopicDetailDto } from '@/types/topic'
+import type { TopicDetailDto } from '@/types/topic'
 import BarChart from '@/components/charts/BarChart.vue'
 import PieChart from '@/components/charts/PieChart.vue'
 import LineChart from '@/components/charts/LineChart.vue'
 import TopicDetailView from './TopicDetailView.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import AlertList from '@/components/common/AlertList.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import { formatNumber, formatBytes } from '@/utils/formatters'
 
 const topicStore = useTopicStore()
@@ -241,7 +229,7 @@ const showConfirmDialog = ref(false)
 const selectedTopic = ref<TopicDetailDto | null>(null)
 const deletingTopicName = ref('')
 
-const monitoringTopics = ref<Array<{
+interface MonitoringTopic {
   name: string
   partitionCount: number
   messageCount: number
@@ -250,23 +238,24 @@ const monitoringTopics = ref<Array<{
   messagesPerSecond: number
   healthScore: number
   trendData: number[]
-}>>([])
+}
 
-const alerts = ref<Array<{
-  id: string
-  type: 'info' | 'warning' | 'error'
-  title: string
-  message: string
-  timestamp: number
-}>>([])
+const monitoringTopics = ref<MonitoringTopic[]>([])
+
 
 const topicTrends = ref<Record<string, number[]>>({})
 
 let refreshTimer: NodeJS.Timeout | null = null
 
 onMounted(() => {
+  console.log('TopicMonitoring 컴포넌트 마운트됨')
+  console.log('현재 연결:', currentConnection.value)
+  
   if (currentConnection.value) {
+    console.log('연결이 있음, 모니터링 시작')
     startMonitoring()
+  } else {
+    console.log('연결이 없음, 연결을 기다림')
   }
 })
 
@@ -274,10 +263,14 @@ onUnmounted(() => {
   stopAutoRefresh()
 })
 
-watch(() => connectionStore.currentConnection?.id, (newConnectionId) => {
+watch(() => connectionStore.currentConnection?.id, (newConnectionId, oldConnectionId) => {
+  console.log('연결 변경 감지:', { oldConnectionId, newConnectionId })
+  
   if (newConnectionId) {
+    console.log('새 연결로 모니터링 시작')
     startMonitoring()
   } else {
+    console.log('연결이 없어서 모니터링 중지')
     stopMonitoring()
   }
 })
@@ -323,15 +316,20 @@ const topicStatusData = computed(() => {
 })
 
 const startMonitoring = async () => {
-  if (!currentConnection.value) return
+  if (!currentConnection.value) {
+    console.log('연결이 선택되지 않음')
+    return
+  }
   
   try {
+    console.log('모니터링 시작:', currentConnection.value.name)
     await refreshMonitoring()
     
     if (autoRefresh.value) {
       startAutoRefresh()
     }
   } catch (err: any) {
+    console.error('모니터링 시작 실패:', err)
     error.value = err.message || '모니터링을 시작할 수 없습니다.'
   }
 }
@@ -339,25 +337,32 @@ const startMonitoring = async () => {
 const stopMonitoring = () => {
   stopAutoRefresh()
   monitoringTopics.value = []
-  alerts.value = []
 }
 
 const refreshMonitoring = async () => {
-  if (!currentConnection.value) return
+  if (!currentConnection.value) {
+    console.log('연결이 선택되지 않아 모니터링 데이터를 불러올 수 없습니다')
+    return
+  }
   
   try {
     loading.value = true
     error.value = null
     
+    console.log('토픽 데이터 로드 시작:', currentConnection.value.id)
     await topicStore.fetchTopics(currentConnection.value.id, true)
+    
+    console.log('로드된 토픽 수:', topicStore.topics.length)
+    console.log('토픽 목록:', topicStore.topics.map(t => t.name))
     
     generateMonitoringData()
     
     updateTopicTrends()
     
-    checkForAlerts()
+    console.log('모니터링 데이터 생성 완료:', monitoringTopics.value.length)
     
   } catch (err: any) {
+    console.error('모니터링 데이터 로드 실패:', err)
     error.value = err.message || '모니터링 데이터를 불러올 수 없습니다.'
   } finally {
     loading.value = false
@@ -365,16 +370,29 @@ const refreshMonitoring = async () => {
 }
 
 const generateMonitoringData = () => {
-  monitoringTopics.value = topicStore.topics.map(topic => ({
-    name: topic.name,
-    partitionCount: topic.partitionCount,
-    messageCount: topic.messageCount,
-    isHealthy: topic.isHealthy,
-    avgMessageSize: Math.floor(Math.random() * 1000) + 100,
-    messagesPerSecond: Math.floor(Math.random() * 100) + 1,
-    healthScore: topic.isHealthy ? Math.floor(Math.random() * 30) + 70 : Math.floor(Math.random() * 50),
-    trendData: Array.from({ length: 10 }, () => Math.floor(Math.random() * 100) + 50)
-  }))
+  console.log('모니터링 데이터 생성 시작, 토픽 수:', topicStore.topics.length)
+  
+  if (topicStore.topics.length === 0) {
+    console.log('토픽이 없어서 모니터링 데이터를 생성할 수 없습니다')
+    monitoringTopics.value = []
+    return
+  }
+  
+  monitoringTopics.value = topicStore.topics.map(topic => {
+    console.log('토픽 처리 중:', topic.name, '메시지 수:', topic.messageCount)
+    return {
+      name: topic.name,
+      partitionCount: topic.partitionCount,
+      messageCount: topic.messageCount,
+      isHealthy: topic.isHealthy,
+      avgMessageSize: Math.floor(Math.random() * 1000) + 100,
+      messagesPerSecond: Math.floor(Math.random() * 100) + 1,
+      healthScore: topic.isHealthy ? Math.floor(Math.random() * 30) + 70 : Math.floor(Math.random() * 50),
+      trendData: Array.from({ length: 10 }, () => Math.floor(Math.random() * 100) + 50)
+    }
+  }) as MonitoringTopic[]
+  
+  console.log('생성된 모니터링 데이터:', monitoringTopics.value.length)
 }
 
 const updateTopicTrends = () => {
@@ -410,43 +428,8 @@ const toggleAutoRefresh = () => {
   }
 }
 
-const checkForAlerts = () => {
-  monitoringTopics.value.forEach(topic => {
-    if (!topic.isHealthy && !alerts.value.find(a => a.message.includes(topic.name))) {
-      addAlert('error', '토픽 오류', `토픽 "${topic.name}"에서 오류가 발생했습니다.`)
-    }
-    
-    if (topic.healthScore < 50 && !alerts.value.find(a => a.message.includes(topic.name + ' 헬스'))) {
-      addAlert('warning', '헬스 점수 낮음', `토픽 "${topic.name}"의 헬스 점수가 낮습니다 (${topic.healthScore.toFixed(1)}%).`)
-    }
-  })
-}
 
-const addAlert = (type: 'info' | 'warning' | 'error', title: string, message: string) => {
-  const alert = {
-    id: Date.now().toString(),
-    type,
-    title,
-    message,
-    timestamp: Date.now()
-  }
-  
-  alerts.value.unshift(alert)
-  
-  if (alerts.value.length > 10) {
-    alerts.value = alerts.value.slice(0, 10)
-  }
-}
-
-const removeAlert = (alertId: string) => {
-  alerts.value = alerts.value.filter(a => a.id !== alertId)
-}
-
-const clearAllAlerts = () => {
-  alerts.value = []
-}
-
-const showTopicDetail = async (topic: TopicDto) => {
+const showTopicDetail = async (topic: { name: string }) => {
   if (!currentConnection.value) {
     ElMessage.error('연결을 선택해주세요')
     return
@@ -492,10 +475,6 @@ const getHealthColor = (score: number) => {
   return '#F56C6C'
 }
 
-const formatTime = (timestamp: number) => {
-  const date = new Date(timestamp)
-  return date.toLocaleTimeString('ko-KR')
-}
 
 const clearError = () => {
   error.value = null
@@ -567,74 +546,8 @@ const clearError = () => {
   margin-bottom: 24px;
 }
 
-.alerts-card .el-card__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.no-alerts {
-  padding: 40px;
-  text-align: center;
-}
-
-.alerts-list {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.alert-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 12px;
-  margin-bottom: 8px;
-  border-radius: 6px;
-  border-left: 4px solid;
-}
-
-.alert-item.alert-info {
-  background-color: #f0f9ff;
-  border-left-color: #409EFF;
-}
-
-.alert-item.alert-warning {
-  background-color: #fdf6ec;
-  border-left-color: #E6A23C;
-}
-
-.alert-item.alert-error {
-  background-color: #fef0f0;
-  border-left-color: #F56C6C;
-}
-
-.alert-content {
-  flex: 1;
-}
-
-.alert-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.alert-title {
-  font-weight: 600;
-  color: #303133;
-}
-
-.alert-time {
-  font-size: 12px;
-  color: #909399;
-}
-
-.alert-message {
-  margin: 0;
-  color: #606266;
-  font-size: 14px;
-}
-
+.no-connection,
+.no-topics,
 .loading-container,
 .error-container {
   display: flex;
@@ -645,5 +558,12 @@ const clearError = () => {
 
 .monitoring-content {
   min-height: 400px;
+}
+
+.no-topic-selected {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
 }
 </style>

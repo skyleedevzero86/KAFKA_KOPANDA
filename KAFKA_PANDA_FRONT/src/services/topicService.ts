@@ -1,5 +1,5 @@
 import { apiService } from './api'
-import type { TopicDto, TopicDetailDto, CreateTopicRequest, DeleteTopicRequest } from '@/types/topic'
+import type { TopicDto, TopicDetailDto, CreateTopicRequest } from '@/types/topic'
 
 export class TopicService {
   async getTopics(connectionId: string, includeInternal: boolean = true): Promise<TopicDto[]> {

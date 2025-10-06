@@ -74,7 +74,7 @@ class PortTest {
             443 to "HTTPS",
             3306 to "MySQL",
             5432 to "PostgreSQL",
-            6379 to "Redis",
+            9379 to "Redis",
             8080 to "HTTP Alternative",
             9092 to "Kafka"
         )

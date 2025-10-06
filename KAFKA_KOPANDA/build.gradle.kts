@@ -13,7 +13,7 @@ version = "0.0.1-SNAPSHOT"
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(19)
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
 
@@ -72,7 +72,8 @@ dependencies {
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 	testImplementation("org.jetbrains.kotlin:kotlin-test")
-
+	implementation("org.springframework.boot:spring-boot-starter-validation")
+	implementation("com.fasterxml.jackson.core:jackson-databind")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.4.0")
 	implementation("io.swagger.core.v3:swagger-annotations:2.2.20")
 	implementation("io.swagger.core.v3:swagger-models:2.2.20")

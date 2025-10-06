@@ -42,11 +42,27 @@
         <el-input
           v-model="configText"
           type="textarea"
-          :rows="4"
+          :rows="6"
           placeholder="토픽 설정 (JSON 형식)"
           :disabled="loading"
-          @input="updateConfig"
+          @input="handleConfigInput"
         />
+        <div class="form-help">
+          <small>
+            <strong>올바른 JSON 형식 예시:</strong><br>
+            <code>{"cleanup.policy": "delete", "retention.ms": "604800000"}</code><br>
+            <code>{}</code> (빈 설정)
+          </small>
+        </div>
+        <div v-if="configError" class="config-error">
+          <el-alert
+            :title="configError"
+            type="error"
+            :closable="false"
+            show-icon
+            size="small"
+          />
+        </div>
       </el-form-item>
     </el-form>
 
@@ -59,6 +75,7 @@
           type="primary"
           @click="handleSubmit"
           :loading="loading"
+          :disabled="!!configError"
         >
           {{ isEdit ? '수정' : '생성' }}
         </el-button>
@@ -92,6 +109,7 @@ const emit = defineEmits<{
 const visible = ref(props.modelValue)
 const loading = ref(false)
 const formRef = ref<FormInstance>()
+const configError = ref<string>('')
 
 const isEdit = computed(() => !!props.topic)
 
@@ -120,12 +138,33 @@ const rules: FormRules = {
   ]
 }
 
-const updateConfig = () => {
-  try {
-    form.value.config = JSON.parse(configText.value)
-  } catch (e) {
-    console.error('Invalid JSON format:', e)
+const handleConfigInput = () => {
+  configError.value = ''
+  
+  if (!configText.value.trim()) {
+    form.value.config = {}
+    return
   }
+  
+  try {
+    const parsed = JSON.parse(configText.value)
+    
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      form.value.config = parsed
+      console.log('JSON 설정 파싱 성공:', parsed)
+    } else {
+      configError.value = '설정은 객체 형태여야 합니다'
+      form.value.config = {}
+    }
+  } catch (e: any) {
+    configError.value = `JSON 형식 오류: ${e.message}`
+    form.value.config = {}
+    console.error('JSON 파싱 실패:', e.message)
+  }
+}
+
+const updateConfig = () => {
+  handleConfigInput()
 }
 
 const resetForm = () => {
@@ -136,6 +175,7 @@ const resetForm = () => {
     config: {}
   }
   configText.value = '{}'
+  configError.value = ''
   formRef.value?.clearValidate()
 }
 
@@ -156,6 +196,7 @@ watch(() => props.topic, (topic) => {
       config: {}
     }
     configText.value = '{}'
+    configError.value = ''
   } else {
     resetForm()
   }
@@ -169,16 +210,33 @@ const handleSubmit = async () => {
     return
   }
 
+  if (configError.value) {
+    ElMessage.error('설정 필드의 JSON 형식을 수정해주세요')
+    return
+  }
+
   try {
     await formRef.value.validate()
     loading.value = true
 
-    updateConfig() 
+    updateConfig()
+
+    if (!form.value.name.trim()) {
+      ElMessage.error('토픽 이름을 입력해주세요')
+      return
+    }
+
+    console.log('토픽 생성 요청:', {
+      connectionId: props.connectionId,
+      topicData: form.value
+    })
 
     emit('submit', { ...form.value })
     visible.value = false
+    resetForm()
   } catch (error) {
     console.error('폼 검증 실패:', error)
+    ElMessage.error('폼 검증에 실패했습니다')
   } finally {
     loading.value = false
   }
@@ -186,10 +244,12 @@ const handleSubmit = async () => {
 
 const handleCancel = () => {
   visible.value = false
+  resetForm()
 }
 
 const handleClose = () => {
   visible.value = false
+  resetForm()
 }
 </script>
 
@@ -198,5 +258,36 @@ const handleClose = () => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.form-help {
+  margin-top: 8px;
+  padding: 8px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+}
+
+.form-help small {
+  color: #606266;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.form-help code {
+  background-color: #f0f0f0;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+}
+
+.config-error {
+  margin-top: 8px;
+}
+
+:deep(.el-textarea__inner) {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
 }
 </style>

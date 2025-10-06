@@ -57,8 +57,9 @@
               placeholder="파티션을 선택하세요"
               @change="loadMessages"
               style="width: 100%"
+              clearable
             >
-              <el-option label="자동 선택" :value="null" />
+              <el-option label="자동 선택" :value="undefined" />
               <el-option
                 v-for="partition in availablePartitions"
                 :key="partition"
@@ -157,7 +158,7 @@ const showSendDialog = ref(false)
 const showSearchDialog = ref(false)
 const selectedConnectionId = ref('')
 const selectedTopic = ref('')
-const selectedPartition = ref<number | null>(null)
+const selectedPartition = ref<number | undefined>(undefined)
 const selectedOffsetType = ref<OffsetType>(OffsetType.EARLIEST)
 const messageLimit = ref(20)
 
@@ -176,7 +177,7 @@ const loadMessages = async () => {
     await messageStore.getMessages(
       selectedConnectionId.value,
       selectedTopic.value,
-      selectedPartition.value || 0,
+      selectedPartition.value ?? 0,
       null,
       selectedOffsetType.value,
       messageLimit.value
@@ -186,7 +187,7 @@ const loadMessages = async () => {
 
 const handleConnectionChange = async () => {
   selectedTopic.value = ''
-  selectedPartition.value = null
+  selectedPartition.value = undefined
   if (selectedConnectionId.value) {
     await topicStore.fetchTopics(selectedConnectionId.value)
   }
@@ -195,7 +196,7 @@ const handleConnectionChange = async () => {
 const handleTopicChange = async () => {
   if (selectedConnectionId.value && selectedTopic.value) {
     await topicStore.getTopicDetails(selectedConnectionId.value, selectedTopic.value)
-    selectedPartition.value = null
+    selectedPartition.value = undefined
     await loadMessages()
   }
 }

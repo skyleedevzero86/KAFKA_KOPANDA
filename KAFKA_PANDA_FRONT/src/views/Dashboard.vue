@@ -119,13 +119,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onActivated } from 'vue'
+import { computed, onMounted, onActivated } from 'vue'
 import { useConnectionStore } from '@/stores/connection'
 import { useTopicStore } from '@/stores/topic'
 import { useMetricsStore } from '@/stores/metrics'
 import { Connection, Document, Monitor, PieChart as PieChartIcon, TrendCharts } from '@element-plus/icons-vue'
 import PieChartComponent from '@/components/charts/PieChart.vue'
-import { formatDate } from '@/utils/formatters'
 
 const connectionStore = useConnectionStore()
 const topicStore = useTopicStore()
@@ -140,7 +139,7 @@ const internalTopics = computed(() =>
   topicStore.topics.filter(t => t.isInternal).length
 )
 
-const brokerCount = computed(() => metricsStore.brokerCount)
+const brokerCount = computed(() => metricsStore.metrics?.brokerCount || 0)
 const totalPartitions = computed(() => 
   topicStore.topics.reduce((sum, topic) => sum + topic.partitionCount, 0)
 )

@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useConnectionStore } from '@/stores/connection'
@@ -157,9 +157,6 @@ const confirmDelete = async () => {
   }
 }
 
-const clearError = () => {
-  connectionStore.clearError()
-}
 
 watch(connections, (newConnections) => {
   console.log('연결 목록 변경됨:', newConnections.length)

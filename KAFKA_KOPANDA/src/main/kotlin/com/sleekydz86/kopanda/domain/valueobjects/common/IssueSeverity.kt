@@ -1,4 +1,4 @@
-package com.sleekydz86.kopanda.application.dto.enums
+package com.sleekydz86.kopanda.domain.valueobjects.common
 
 enum class IssueSeverity {
     LOW,

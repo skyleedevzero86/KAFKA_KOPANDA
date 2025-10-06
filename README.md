@@ -16,30 +16,35 @@
 ## ✨ 주요 기능
 
 ### 🔗 **연결 관리**
+
 - **다중 Kafka 클러스터 연결** - 여러 Kafka 서버에 동시 연결
 - **연결 상태 모니터링** - 실시간 연결 상태 및 헬스체크
 - **SSL/SASL 인증 지원** - 보안 연결 설정
 - **연결 테스트** - 연결 가능성 사전 검증
 
 ### 📊 **토픽 관리**
+
 - **토픽 생성/삭제** - 새로운 토픽 생성 및 기존 토픽 삭제
 - **토픽 목록 조회** - 클러스터 내 모든 토픽 정보
 - **토픽 상세 정보** - 파티션, 복제 팩터, 설정 정보
 - **토픽 상태 모니터링** - 토픽 헬스 상태 및 메트릭
 
 ### �� **메시지 관리**
+
 - **메시지 전송** - 특정 토픽에 메시지 발행
 - **메시지 조회** - 파티션별 메시지 읽기
 - **메시지 검색** - 키/값 기반 메시지 검색
 - **오프셋 관리** - 파티션별 오프셋 조회 및 설정
 
 ### 📈 **모니터링 & 메트릭**
+
 - **실시간 메트릭** - 브로커, 토픽, 파티션 메트릭
 - **컨슈머 그룹 모니터링** - 컨슈머 그룹 상태 및 오프셋
 - **WebSocket 실시간 업데이트** - 실시간 상태 변경 알림
 - **성능 지표** - 처리량, 지연시간, 연결 수
 
 ### 🔧 **개발자 도구**
+
 - **RESTful API** - 완전한 REST API 제공
 - **H2 콘솔** - 내장 데이터베이스 관리
 - **테스트 컨트롤러** - 개발 및 테스트용 엔드포인트
@@ -48,6 +53,7 @@
 ## 🏗️ 아키텍처
 
 ### **Backend (Spring Boot + Kotlin)**
+
 ```
 src/main/kotlin/com/sleekydz86/kopanda/
 ├── application/           # 애플리케이션 레이어
@@ -70,6 +76,7 @@ src/main/kotlin/com/sleekydz86/kopanda/
 ```
 
 ### **Frontend (Vue.js + TypeScript)**
+
 ```
 src/
 ├── components/           # Vue 컴포넌트
@@ -100,18 +107,21 @@ src/
 ### ⚡ **빠른 설치**
 
 1. **저장소 클론**
+
 ```bash
 git clone https://github.com/your-username/kafka-kopanda.git
 cd kafka-kopanda
 ```
 
 2. **백엔드 실행**
+
 ```bash
 cd KAFKA_KOPANDA
 ./gradlew bootRun
 ```
 
 3. **프론트엔드 실행**
+
 ```bash
 cd KAFKA_PANDA_FRONT
 pnpm install
@@ -119,6 +129,7 @@ pnpm dev
 ```
 
 4. **애플리케이션 접속**
+
 ```
 Backend: http://localhost:8080/api
 Frontend: http://localhost:5173
@@ -129,6 +140,7 @@ Swagger UI: http://localhost:8080/api/swagger-ui.html
 ### 🔧 **설정**
 
 #### **Backend 설정 (application.yml)**
+
 ```yaml
 server:
   port: 8080
@@ -149,6 +161,7 @@ kafka:
 ```
 
 #### **Frontend 설정 (.env)**
+
 ```env
 VITE_API_BASE_URL=http://localhost:8080/api
 ```
@@ -157,21 +170,21 @@ VITE_API_BASE_URL=http://localhost:8080/api
 
 ### **연결 관리 API**
 
-| Method | Endpoint                           | Description    |
-| ------ | ---------------------------------- | -------------- |
-| `GET`  | `/api/connections`                 | 모든 연결 조회 |
-| `POST` | `/api/connections`                 | 새 연결 생성   |
-| `POST` | `/api/connections/test`            | 연결 테스트    |
-| `GET`  | `/api/connections/{id}/status`     | 연결 상태 확인 |
+| Method | Endpoint                       | Description    |
+| ------ | ------------------------------ | -------------- |
+| `GET`  | `/api/connections`             | 모든 연결 조회 |
+| `POST` | `/api/connections`             | 새 연결 생성   |
+| `POST` | `/api/connections/test`        | 연결 테스트    |
+| `GET`  | `/api/connections/{id}/status` | 연결 상태 확인 |
 
 ### **토픽 관리 API**
 
-| Method | Endpoint                              | Description      |
-| ------ | ------------------------------------- | ---------------- |
-| `GET`  | `/api/connections/{id}/topics`        | 토픽 목록 조회   |
-| `POST` | `/api/connections/{id}/topics`        | 토픽 생성        |
-| `DELETE` | `/api/connections/{id}/topics/{name}` | 토픽 삭제        |
-| `GET`  | `/api/connections/{id}/topics/{name}` | 토픽 상세 정보   |
+| Method   | Endpoint                              | Description    |
+| -------- | ------------------------------------- | -------------- |
+| `GET`    | `/api/connections/{id}/topics`        | 토픽 목록 조회 |
+| `POST`   | `/api/connections/{id}/topics`        | 토픽 생성      |
+| `DELETE` | `/api/connections/{id}/topics/{name}` | 토픽 삭제      |
+| `GET`    | `/api/connections/{id}/topics/{name}` | 토픽 상세 정보 |
 
 ### **메시지 관리 API**
 
@@ -192,6 +205,7 @@ VITE_API_BASE_URL=http://localhost:8080/api
 ## ��️ 기술 스택
 
 ### **Backend**
+
 - **Framework**: Spring Boot 3.5.3
 - **Language**: Kotlin 1.9.25
 - **Database**: H2 (개발), PostgreSQL (운영)
@@ -203,6 +217,7 @@ VITE_API_BASE_URL=http://localhost:8080/api
 - **Documentation**: Swagger/OpenAPI 3
 
 ### **Frontend**
+
 - **Framework**: Vue.js 3.5.17
 - **Language**: TypeScript 5.5.4
 - **State Management**: Pinia 3.0.3
@@ -214,6 +229,7 @@ VITE_API_BASE_URL=http://localhost:8080/api
 - **Package Manager**: pnpm
 
 ### **DevOps & Tools**
+
 - **Build Tool**: Gradle 8.0+
 - **Package Manager**: pnpm
 - **Linting**: ESLint, Prettier
@@ -223,18 +239,21 @@ VITE_API_BASE_URL=http://localhost:8080/api
 ## �� 테스트
 
 ### **Backend 테스트**
+
 ```bash
 cd KAFKA_KOPANDA
 ./gradlew test
 ```
 
 ### **Frontend 테스트**
+
 ```bash
 cd KAFKA_PANDA_FRONT
 pnpm test
 ```
 
 ### **전체 테스트**
+
 ```bash
 # Backend
 ./gradlew check
@@ -247,6 +266,7 @@ pnpm run lint
 ## �� 배포
 
 ### **Docker 배포**
+
 ```bash
 # Backend Docker 이미지 빌드
 cd KAFKA_KOPANDA
@@ -261,6 +281,7 @@ docker-compose up -d
 ```
 
 ### **개발 환경 실행**
+
 ```bash
 # Backend
 ./gradlew bootRun
@@ -272,12 +293,14 @@ pnpm dev
 ## �� 모니터링
 
 ### **애플리케이션 메트릭**
+
 - **Actuator**: `/api/actuator`
 - **Health Check**: `/api/actuator/health`
 - **Metrics**: `/api/actuator/metrics`
 - **Prometheus**: `/api/actuator/prometheus`
 
 ### **데이터베이스 관리**
+
 - **H2 Console**: `http://localhost:8080/api/h2-console`
 - **Connection**: `jdbc:h2:file:./data/kopanda`
 - **Username**: `sa`
@@ -286,16 +309,19 @@ pnpm dev
 ## �� 개발 가이드
 
 ### **코드 스타일**
+
 - **Backend**: Kotlin 코딩 컨벤션 준수
 - **Frontend**: ESLint + Prettier 설정
 - **TypeScript**: 엄격한 타입 체크
 
 ### **아키텍처 패턴**
+
 - **Backend**: Hexagonal Architecture (Clean Architecture)
 - **Frontend**: Composition API + Pinia
 - **API**: RESTful API 설계
 
 ### **에러 처리**
+
 - **Backend**: GlobalExceptionHandler
 - **Frontend**: Axios Interceptors
 - **로깅**: 구조화된 로깅
@@ -310,7 +336,6 @@ pnpm dev
 
 <img width="1903" height="402" alt="image" src="https://github.com/user-attachments/assets/416089f8-2259-48eb-9aa2-040b377851c0" />
 
-
 ### 📊 **토픽 관리**
 
 <img width="944" height="446" alt="image" src="https://github.com/user-attachments/assets/afae13ee-ce2a-4503-bc22-0fa935f6b262" />
@@ -321,18 +346,14 @@ pnpm dev
 <img width="1722" height="902" alt="image" src="https://github.com/user-attachments/assets/75307170-7418-49be-ab58-987caa7ac635" />
 <img width="1244" height="909" alt="image" src="https://github.com/user-attachments/assets/16093bda-73bd-4440-bb34-31bf954840a9" />
 
-
-
 ### 💬 **메시지 관리**
 
 <img width="1132" height="543" alt="image" src="https://github.com/user-attachments/assets/21d26beb-49ac-423d-bb95-72dfc37b603c" />
 <img width="1109" height="646" alt="image" src="https://github.com/user-attachments/assets/dc14552a-6f32-4a4c-a684-4ffa8c391a79" />
 
-
 ### 📈 **메트릭 대시보드**
 
 <img width="1911" height="407" alt="image" src="https://github.com/user-attachments/assets/8cd11546-f935-4513-9692-66ff24a4ca17" />
-
 
 ## 📝 라이선스
 
@@ -355,8 +376,6 @@ pnpm dev
 ---
 
 **Kafka Kopanda** - Kafka 관리의 새로운 패러다임 🚀
-
-
 
 [![GitHub forks](https://img.shields.io/github/forks/skyleedevzero86/kafka-kopanda?style=social)](https://github.com/skyleedevzero86/kafka-kopanda/network/members)
 [![GitHub issues](https://img.shields.io/github/issues/skyleedevzero86/kafka-kopanda)](https://github.com/skyleedevzero86/kafka-kopanda/issues)

@@ -136,24 +136,24 @@ class TopicController(
         ]
     )
     suspend fun createTopic(
-        @Parameter(description = "연결 ID", required = true)
-        @RequestParam connectionId: String,
-        @Parameter(description = "토픽 생성 요청", required = true)
-        @RequestBody request: CreateTopicRequest
-    ): ResponseEntity<TopicDto> {
-        return try {
-            logger.info("토픽 생성 요청: $connectionId/${request.name}")
-            val topic = kafkaManagementUseCase.createTopic(connectionId, request)
-            logger.info("토픽 생성 성공: ${request.name}")
-            ResponseEntity.status(201).body(topic)
-        } catch (e: DomainException) {
-            logger.warn("토픽 생성 실패 (도메인 예외): ${request.name}", e)
-            ResponseEntity.badRequest().build()
-        } catch (e: Exception) {
-            logger.error("토픽 생성 실패: $connectionId/${request.name}", e)
-            ResponseEntity.internalServerError().build()
-        }
+    @Parameter(description = "연결 ID", required = true)
+    @RequestParam connectionId: String,
+    @Parameter(description = "토픽 생성 요청", required = true)
+    @RequestBody request: CreateTopicRequest
+): ResponseEntity<TopicDto> {
+    return try {
+        logger.info("토픽 생성 요청: $connectionId/${request.name}")
+        val topic = kafkaManagementUseCase.createTopic(connectionId, request)
+        logger.info("토픽 생성 성공: ${topic.name}")
+        ResponseEntity.status(201).body(topic)
+    } catch (e: DomainException) {
+        logger.warn("토픽 생성 실패 (도메인 오류): ${e.message}")
+        ResponseEntity.badRequest().build()
+    } catch (e: Exception) {
+        logger.error("토픽 생성 실패: $connectionId/${request.name}", e)
+        ResponseEntity.internalServerError().build()
     }
+}
 
     @DeleteMapping("/{topicName}")
     @Operation(

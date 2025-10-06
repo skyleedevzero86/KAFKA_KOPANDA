@@ -51,7 +51,7 @@
       <el-form-item label="헤더">
         <div class="headers-container">
           <div
-            v-for="(value, key) in form.headers"
+            v-for="(_, key) in form.headers"
             :key="key"
             class="header-item"
           >

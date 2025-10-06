@@ -46,9 +46,9 @@ class ConnectionAcceptanceTest {
 
         @Container
         val kafkaContainer = KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0")).apply {
-            withExposedPorts(9093)
-            withEnv("KAFKA_LISTENERS", "PLAINTEXT://0.0.0.0:9093")
-            withEnv("KAFKA_ADVERTISED_LISTENERS", "PLAINTEXT://localhost:9093")
+            withExposedPorts(9092)
+            withEnv("KAFKA_LISTENERS", "PLAINTEXT://0.0.0.0:9092")
+            withEnv("KAFKA_ADVERTISED_LISTENERS", "PLAINTEXT://localhost:9092")
             withEnv("KAFKA_ZOOKEEPER_CONNECT", "localhost:2181")
         }
 
@@ -120,7 +120,7 @@ class ConnectionAcceptanceTest {
         val updateRequest = UpdateConnectionRequest(
             name = "updated-production-kafka",
             host = "kafka.prod.updated.com",
-            port = 9093
+            port = 9092
         )
 
         val updateResponse = RestAssured.given()
@@ -137,7 +137,7 @@ class ConnectionAcceptanceTest {
         val updatedConnection = objectMapper.readValue<ConnectionDto>(updateResponse.body.asString())
         assertEquals("updated-production-kafka", updatedConnection.name)
         assertEquals("kafka.prod.updated.com", updatedConnection.host)
-        assertEquals(9093, updatedConnection.port)
+        assertEquals(9092, updatedConnection.port)
 
         // when
         val listResponse = RestAssured.given()
@@ -298,7 +298,7 @@ class ConnectionAcceptanceTest {
         val duplicateRequest = CreateConnectionRequest(
             name = "duplicate-test",
             host = "other-host",
-            port = 9093
+            port = 9092
         )
 
         // then

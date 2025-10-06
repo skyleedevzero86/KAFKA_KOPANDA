@@ -4,7 +4,7 @@
       <div class="message-header">
         <span class="message-offset">Offset: {{ formatOffset(message.offset) }}</span>
         <span class="message-partition">Partition {{ message.partition }}</span>
-        <span class="message-time">{{ formatDate(message.timestamp) }}</span>
+        <span class="message-time">{{ formatTime(message.timestamp) }}</span>
       </div>
     </template>
 
@@ -60,7 +60,7 @@
 
 <script setup lang="ts">
 import type { MessageDto } from '@/types/message'
-import { formatOffset, formatDate } from '@/utils/formatters'
+import { formatOffset, formatTime } from '@/utils/formatters'
 
 interface Props {
   message: MessageDto

@@ -19,7 +19,6 @@ export class ApiService {
   }
 
   private setupInterceptors() {
-
     this.api.interceptors.request.use(
       (config) => {
         console.log('API 요청:', config.method?.toUpperCase(), config.url)
@@ -30,7 +29,6 @@ export class ApiService {
         return Promise.reject(error)
       }
     )
-
 
     this.api.interceptors.response.use(
       (response: AxiosResponse) => {
@@ -73,8 +71,8 @@ export class ApiService {
     return response.data
   }
 
-  async delete<T>(url: string): Promise<T> {
-    const response = await this.api.delete<T>(url)
+  async delete<T>(url: string, params?: any): Promise<T> {
+    const response = await this.api.delete<T>(url, { params })
     return response.data
   }
 }
