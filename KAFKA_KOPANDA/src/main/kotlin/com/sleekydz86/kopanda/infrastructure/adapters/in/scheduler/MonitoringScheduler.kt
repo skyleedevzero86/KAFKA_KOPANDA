@@ -1,79 +1,67 @@
 package com.sleekydz86.kopanda.infrastructure.adapters.`in`.scheduler
 
+import com.sleekydz86.kopanda.application.ports.`in`.AlertManagementUseCase
 import com.sleekydz86.kopanda.application.ports.`in`.ConnectionManagementUseCase
 import com.sleekydz86.kopanda.application.ports.`in`.KafkaManagementUseCase
+import com.sleekydz86.kopanda.application.ports.out.ConnectionRepository
+import com.sleekydz86.kopanda.domain.entities.Connection
+import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 @Component
 class MonitoringScheduler(
-    private val connectionManagementUseCase: ConnectionManagementUseCase,
-    private val kafkaManagementUseCase: KafkaManagementUseCase
+    private val alertManagementUseCase: AlertManagementUseCase,
+    private val connectionRepository: ConnectionRepository
 ) {
-
+    
     private val logger = LoggerFactory.getLogger(MonitoringScheduler::class.java)
 
-    @Scheduled(fixedRate = 30000)
-    suspend fun monitorConnections() {
-        logger.info("Starting scheduled connection monitoring")
-        try {
-            connectionManagementUseCase.refreshAllConnectionStatuses()
-            logger.info("Connection monitoring completed successfully")
-        } catch (e: Exception) {
-            logger.error("Error during connection monitoring", e)
+    @Scheduled(fixedRate = 30000) // 30초마다 실행
+    fun checkAlerts() {
+        logger.info("Monitoring scheduler running...")
+
+        runBlocking {
+            try {
+                val connections = connectionRepository.findAll()
+                logger.info("Found ${connections.size} connections to check")
+                
+                connections.forEach { connection ->
+                    logger.debug("Checking alerts for connection: ${connection.name.value}")
+
+                    val connectionId = getConnectionId(connection)
+                    if (connectionId != null) {
+                        try {
+                            alertManagementUseCase.checkAndCreateAlerts(connectionId)
+                            logger.debug("Alert check completed for connection: ${connection.name.value}")
+                        } catch (e: Exception) {
+                            logger.error("Failed to check alerts for connection ${connection.name.value}: ${e.message}", e)
+                        }
+                    } else {
+                        logger.warn("Could not get connection ID for: ${connection.name.value}")
+                    }
+                }
+            } catch (e: Exception) {
+                logger.error("Error in monitoring scheduler: ${e.message}", e)
+            }
         }
     }
 
-    @Scheduled(fixedRate = 60000)
-    suspend fun monitorTopicsHealth() {
-        logger.info("Starting scheduled topic health monitoring")
-        try {
-            val connections = connectionManagementUseCase.getConnections()
-            connections.forEach { connection ->
-                try {
-                    val topicsHealth = kafkaManagementUseCase.getAllTopicsHealth(connection.id)
-                    val unhealthyTopics = topicsHealth.filter { !it.isHealthy }
-
-                    if (unhealthyTopics.isNotEmpty()) {
-                        logger.warn("Found ${unhealthyTopics.size} unhealthy topics in connection ${connection.id}")
-                        unhealthyTopics.forEach { topic ->
-                            logger.warn("Unhealthy topic: ${topic.topicName}, Health score: ${topic.healthScore}")
-                        }
-                    }
-                } catch (e: Exception) {
-                    logger.error("Error monitoring topics for connection ${connection.id}", e)
-                }
+    private fun getConnectionId(connection: Connection): String? {
+        return try {
+            val idField = connection.javaClass.getDeclaredField("id")
+            idField.isAccessible = true
+            val id = idField.get(connection)
+            if (id is ConnectionId) {
+                id.value
+            } else {
+                null
             }
-            logger.info("Topic health monitoring completed successfully")
         } catch (e: Exception) {
-            logger.error("Error during topic health monitoring", e)
-        }
-    }
-
-    @Scheduled(fixedRate = 120000)
-    suspend fun monitorConsumerGroups() {
-        logger.info("Starting scheduled consumer group monitoring")
-        try {
-            val connections = connectionManagementUseCase.getConnections()
-            connections.forEach { connection ->
-                try {
-                    val consumerGroupMetrics = kafkaManagementUseCase.getAllConsumerGroupMetrics(connection.id)
-                    val highLagGroups = consumerGroupMetrics.filter { it.totalLag > 1000 }
-
-                    if (highLagGroups.isNotEmpty()) {
-                        logger.warn("Found ${highLagGroups.size} consumer groups with high lag in connection ${connection.id}")
-                        highLagGroups.forEach { group ->
-                            logger.warn("High lag group: ${group.groupId}, Total lag: ${group.totalLag}")
-                        }
-                    }
-                } catch (e: Exception) {
-                    logger.error("Error monitoring consumer groups for connection ${connection.id}", e)
-                }
-            }
-            logger.info("Consumer group monitoring completed successfully")
-        } catch (e: Exception) {
-            logger.error("Error during consumer group monitoring", e)
+            logger.error("Failed to get connection ID: ${e.message}", e)
+            null
         }
     }
 }

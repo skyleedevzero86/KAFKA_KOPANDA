@@ -127,7 +127,7 @@ class ConnectionControllerTest {
         val updateRequest = UpdateConnectionRequest(
             name = "updated-connection",
             host = "new-host",
-            port = 9093
+            port = 9092
         )
         val updatedConnection = createTestConnectionDto(connectionId, "updated-connection")
         coEvery { connectionManagementUseCase.updateConnection(connectionId, any()) } returns updatedConnection

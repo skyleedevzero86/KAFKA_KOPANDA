@@ -3,13 +3,8 @@ import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-import Chart from 'chart.js/auto'
-
 import App from './App.vue'
 import router from './router'
-
-// Chart.js 등록
-Chart.register()
 
 const app = createApp(App)
 

@@ -93,7 +93,7 @@ class ConnectionIntegrationTest {
         val updateRequest = UpdateConnectionRequest(
             name = "updated-connection",
             host = "updated-host",
-            port = 9093
+            port = 9092
         )
 
         // when & then
@@ -235,7 +235,7 @@ class ConnectionIntegrationTest {
         val duplicateRequest = CreateConnectionRequest(
             name = "duplicate-name",
             host = "other-host",
-            port = 9093
+            port = 9092
         )
 
         mockMvc.perform(

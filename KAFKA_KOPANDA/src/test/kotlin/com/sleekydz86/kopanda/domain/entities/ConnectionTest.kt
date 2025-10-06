@@ -34,7 +34,7 @@ class ConnectionTest {
         // given
         val name = "secure-connection"
         val host = "kafka.example.com"
-        val port = 9093
+        val port = 9092
         val username = "admin"
         val password = "password123"
 
@@ -65,7 +65,7 @@ class ConnectionTest {
         val connection = Connection.create("old-name", "old-host", 9092)
         val newName = "new-name"
         val newHost = "new-host"
-        val newPort = 9093
+        val newPort = 9092
 
         // when
         connection.updateConnectionInfo(

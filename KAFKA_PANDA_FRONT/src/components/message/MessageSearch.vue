@@ -86,7 +86,6 @@ import { useMessageStore } from '@/stores/message'
 import { useTopicStore } from '@/stores/topic'
 import { ElMessage } from 'element-plus'
 import type { MessageSearchCriteria } from '@/types/message'
-import type { TopicDto } from '@/types/topic'
 
 interface Props {
   modelValue: boolean
@@ -126,10 +125,7 @@ const endTime = ref<Date | null>(null)
 
 const availableTopics = computed(() => {
   if (!props.connectionId) return []
-  return topicStore.topics.filter(topic => {
-   
-    return true
-  })
+  return topicStore.topics
 })
 
 const availablePartitions = computed(() => {

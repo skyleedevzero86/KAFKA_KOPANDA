@@ -47,7 +47,7 @@
           :key="notification.id"
           class="notification-item"
           :class="{ 
-            'unread': !notification.isRead,
+            'unread': !notification.isAcknowledged,
             [`severity-${notification.severity.toLowerCase()}`]: true
           }"
           @click="markAsRead(notification.id)"
@@ -92,7 +92,7 @@ interface Notification {
   topicName?: string
   connectionId?: string
   timestamp: string
-  isRead: boolean
+  isAcknowledged: boolean
   details: Record<string, any>
 }
 
@@ -101,14 +101,15 @@ const showNotificationPanel = ref(false)
 const loading = ref(false)
 
 const unreadCount = computed(() => 
-  notifications.value.filter(n => !n.isRead).length
+  notifications.value.filter(n => !n.isAcknowledged).length
 )
 
 const fetchNotifications = async () => {
   try {
     loading.value = true
-    const response = await apiService.get<Notification[]>('/notifications')
+    const response = await apiService.get<Notification[]>('/alerts')
     notifications.value = response
+    console.log('알람 조회 성공:', response.length, '개')
   } catch (error) {
     console.error('알림 조회 실패:', error)
     ElMessage.error('알림을 불러오는데 실패했습니다.')
@@ -119,10 +120,10 @@ const fetchNotifications = async () => {
 
 const markAsRead = async (notificationId: string) => {
   try {
-    await apiService.post(`/notifications/${notificationId}/read`)
+    await apiService.post(`/alerts/${notificationId}/acknowledge`)
     const notification = notifications.value.find(n => n.id === notificationId)
     if (notification) {
-      notification.isRead = true
+      notification.isAcknowledged = true
     }
   } catch (error) {
     console.error('알림 읽음 처리 실패:', error)
@@ -131,8 +132,8 @@ const markAsRead = async (notificationId: string) => {
 
 const markAllAsRead = async () => {
   try {
-    await apiService.post('/notifications/read-all')
-    notifications.value.forEach(n => n.isRead = true)
+    await apiService.post('/alerts/acknowledge-all')
+    notifications.value.forEach(n => n.isAcknowledged = true)
     ElMessage.success('모든 알림을 읽음 처리했습니다.')
   } catch (error) {
     console.error('모든 알림 읽음 처리 실패:', error)
@@ -142,7 +143,7 @@ const markAllAsRead = async () => {
 
 const deleteNotification = async (notificationId: string) => {
   try {
-    await apiService.delete(`/notifications/${notificationId}`)
+    await apiService.delete(`/alerts/${notificationId}`)
     notifications.value = notifications.value.filter(n => n.id !== notificationId)
     ElMessage.success('알림을 삭제했습니다.')
   } catch (error) {
@@ -153,7 +154,7 @@ const deleteNotification = async (notificationId: string) => {
 
 const clearAllNotifications = async () => {
   try {
-    await apiService.delete('/notifications')
+    await apiService.delete('/alerts')
     notifications.value = []
     ElMessage.success('모든 알림을 삭제했습니다.')
   } catch (error) {
@@ -182,7 +183,7 @@ let refreshInterval: NodeJS.Timeout | null = null
 
 onMounted(() => {
   fetchNotifications()
-  refreshInterval = setInterval(fetchNotifications, 10000) 
+  refreshInterval = setInterval(fetchNotifications, 10000)
 })
 
 onUnmounted(() => {
@@ -363,4 +364,3 @@ onUnmounted(() => {
   background: #a8a8a8;
 }
 </style>
-

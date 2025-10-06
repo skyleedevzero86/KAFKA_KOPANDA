@@ -2,6 +2,7 @@ package com.sleekydz86.kopanda.infrastructure.adapters.`in`.rest
 
 import com.sleekydz86.kopanda.application.dto.request.PartitionDetailDto
 import com.sleekydz86.kopanda.application.dto.response.*
+import com.sleekydz86.kopanda.application.ports.`in`.AlertManagementUseCase
 import com.sleekydz86.kopanda.application.ports.`in`.ConnectionManagementUseCase
 import com.sleekydz86.kopanda.application.ports.`in`.KafkaManagementUseCase
 import io.swagger.v3.oas.annotations.Operation
@@ -22,7 +23,8 @@ import org.springframework.web.bind.annotation.*
 )
 class MonitoringController(
     private val connectionManagementUseCase: ConnectionManagementUseCase,
-    private val kafkaManagementUseCase: KafkaManagementUseCase
+    private val kafkaManagementUseCase: KafkaManagementUseCase,
+    private val alertManagementUseCase: AlertManagementUseCase
 ) {
 
     @GetMapping("/connections/{connectionId}/detailed-metrics")
@@ -1239,4 +1241,28 @@ class MonitoringController(
         val topicMetrics = kafkaManagementUseCase.getTopicMetrics(connectionId)
         return ResponseEntity.ok(topicMetrics)
     }
+
+@GetMapping("/connections/{connectionId}/alerts")
+@Operation(
+    summary = "연결별 알람 조회",
+    description = "지정된 연결과 관련된 모든 알람을 조회합니다."
+)
+fun getConnectionAlerts(
+    @Parameter(description = "연결 ID")
+    @PathVariable connectionId: String
+): ResponseEntity<List<AlertDto>> {
+    val alerts = alertManagementUseCase.getActiveAlerts(connectionId)
+    return ResponseEntity.ok(alerts)
+}
+
+@GetMapping("/alerts/active")
+@Operation(
+    summary = "활성 알람 조회",
+    description = "시스템의 모든 활성 알람을 조회합니다."
+)
+fun getActiveAlerts(): ResponseEntity<List<AlertDto>> {
+    val alerts = alertManagementUseCase.getActiveAlerts()
+    return ResponseEntity.ok(alerts)
+}
+
 }

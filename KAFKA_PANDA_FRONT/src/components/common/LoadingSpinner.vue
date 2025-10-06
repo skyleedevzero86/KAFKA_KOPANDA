@@ -1,11 +1,15 @@
 <template>
   <div class="loading-spinner">
-    <el-loading-spinner />
+    <el-icon class="is-loading">
+      <Loading />
+    </el-icon>
     <p>{{ message }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
+import { Loading } from '@element-plus/icons-vue'
+
 interface Props {
   message?: string
 }

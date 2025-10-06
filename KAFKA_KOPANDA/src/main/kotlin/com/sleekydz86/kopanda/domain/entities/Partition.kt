@@ -24,12 +24,16 @@ class Partition(
 
     @ElementCollection
     @CollectionTable(name = "partition_replicas", joinColumns = [JoinColumn(name = "partition_id")])
-    @Column(name = "broker_id")
+    @AttributeOverrides(
+        AttributeOverride(name = "value", column = Column(name = "broker_id"))
+    )
     val replicas: List<BrokerId>,
 
     @ElementCollection
     @CollectionTable(name = "partition_isr", joinColumns = [JoinColumn(name = "partition_id")])
-    @Column(name = "broker_id")
+    @AttributeOverrides(
+        AttributeOverride(name = "value", column = Column(name = "broker_id"))
+    )
     val inSyncReplicas: List<BrokerId>,
 
     @Column(name = "earliest_offset")

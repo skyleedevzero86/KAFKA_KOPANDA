@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useMetricsStore } from '@/stores/metrics'
 import { useConnectionStore } from '@/stores/connection'
 import { useTopicStore } from '@/stores/topic'
@@ -38,8 +38,6 @@ import TopicMetrics from './TopicMetrics.vue'
 import ConsumerGroupMetrics from './ConsumerGroupMetrics.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
-import type { KafkaMetricsDto, ConsumerGroupDto } from '@/types/metrics'
-import type { TopicDto } from '@/types/topic'
 
 const metricsStore = useMetricsStore()
 const connectionStore = useConnectionStore()

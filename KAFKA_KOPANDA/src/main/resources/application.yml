@@ -4,6 +4,21 @@ server:
     context-path: /api
 
 spring:
+  data:
+    redis:
+      host: localhost
+      port: 9379
+      password: 123456
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: test-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
   application:
     name: kafka-kopanda
 
@@ -29,7 +44,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
         implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
@@ -98,39 +113,6 @@ logging:
     org.springframework.transaction: DEBUG
     org.hibernate.tool.schema: DEBUG
 
-kafka:
-  client:
-    bootstrap-servers: localhost:9092
-    default-timeout-ms: 5000
-    request-timeout-ms: 3000
-    metadata-max-age-ms: 300000
-    reconnect-backoff-ms: 50
-    retry-backoff-ms: 100
-    max-block-ms: 60000
-    buffer-memory: 33554432
-    compression-type: none
-    batch-size: 16384
-    linger-ms: 0
-    max-request-size: 1048576
-    receive-buffer-bytes: 32768
-    send-buffer-bytes: 131072
-    max-in-flight-requests-per-connection: 5
-    connections-max-idle-ms: 540000
-    session-timeout-ms: 30000
-    heartbeat-interval-ms: 3000
-    max-poll-records: 500
-    max-poll-interval-ms: 300000
-    auto-offset-reset: earliest
-    enable-auto-commit: false
-    auto-commit-interval-ms: 5000
-    check-crcs: true
-    exclude-internal-topics: true
-    isolation-level: read_uncommitted
-    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    key-serializer: org.apache.kafka.common.serialization.StringSerializer
-    value-serializer: org.apache.kafka.common.serialization.StringSerializer
-
   admin:
     request-timeout-ms: 5000
     default-api-timeout-ms: 5000
@@ -177,3 +159,19 @@ app:
     max-connections: 100
     connection-pool-size: 10
     default-host: localhost
+
+alerts:
+  monitoring:
+    enabled: true
+    check-interval: 300000 # 5분
+    status-refresh-interval: 60000 # 1분
+    thresholds:
+      consumer-lag:
+        warning: 1000
+        critical: 10000
+      under-replicated-partitions:
+        warning: 1
+        critical: 5
+      offline-partitions:
+        warning: 0
+        critical: 1
