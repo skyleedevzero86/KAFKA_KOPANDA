@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { connectionService } from '@/services/connectionService'
 import type { ConnectionDto, CreateConnectionRequest, UpdateConnectionRequest, ConnectionTestResult, ConnectionStatus } from '@/types/connection'
+import { ConnectionStatusType } from '@/types/connection'
 
 export const useConnectionStore = defineStore('connection', () => {
   const connections = ref<ConnectionDto[]>([])
@@ -92,6 +93,19 @@ export const useConnectionStore = defineStore('connection', () => {
     }
   }
 
+  async function judgeConnections() {
+    await Promise.all(connections.value.map(async (connection) => {
+      try {
+        const status = await connectionService.getConnectionStatus(connection.id)
+        connection.lastConnected = status.status === ConnectionStatusType.CONNECTED
+          ? status.lastChecked
+          : undefined
+      } catch {
+        connection.lastConnected = undefined
+      }
+    }))
+  }
+
   async function getConnectionStatus(id: string): Promise<ConnectionStatus> {
     try {
       loading.value = true
@@ -148,6 +162,7 @@ export const useConnectionStore = defineStore('connection', () => {
     deleteConnection,
     testConnection,
     getConnectionStatus,
+    judgeConnections,
     createTestConnection,
     setCurrentConnection,
     clearError

@@ -1,6 +1,7 @@
 package com.sleekydz86.kopanda.application.services
 
 import com.sleekydz86.kopanda.application.dto.enums.ActivityType
+import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType as DomainActivityType
 import com.sleekydz86.kopanda.application.dto.response.ActivityDto
 import com.sleekydz86.kopanda.application.ports.out.ActivityRepository
 import com.sleekydz86.kopanda.domain.entities.Activity
@@ -183,7 +184,7 @@ class ActivityServiceTest {
         connectionId: String? = null
     ): Activity {
         return Activity(
-            type = type,
+            type = DomainActivityType(type.name),
             title = ActivityTitle(title),
             message = ActivityMessage("테스트 메시지"),
             connectionId = connectionId,

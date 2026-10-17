@@ -169,7 +169,7 @@ class ConnectionControllerTest {
             success = true,
             message = "Connection successful",
             latency = 50L,
-            brokerInfo = BrokerInfo(3, listOf("3.9.0"))
+            brokerInfo = BrokerInfo(3, listOf("7.7.1"))
         )
         coEvery { connectionManagementUseCase.testConnection(any()) } returns testResult
 

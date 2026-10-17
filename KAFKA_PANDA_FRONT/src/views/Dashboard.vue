@@ -130,9 +130,8 @@ const connectionStore = useConnectionStore()
 const topicStore = useTopicStore()
 const metricsStore = useMetricsStore()
 
-const isClusterConnected = (connection: { lastConnected?: string; host?: string; port?: number }) => {
-  if (connection.lastConnected && connection.lastConnected !== 'Invalid Date') return true
-  return Boolean(connection.host && connection.port)
+const isClusterConnected = (connection: { lastConnected?: string }) => {
+  return Boolean(connection.lastConnected && connection.lastConnected !== 'Invalid Date')
 }
 
 const connectedClusters = computed(() => 
@@ -202,6 +201,7 @@ const getConnectionStatusText = (connection: any) => {
 
 onMounted(async () => {
   await connectionStore.fetchConnections()
+  await connectionStore.judgeConnections()
   if (!connectionStore.currentConnection && connectionStore.connections.length > 0) {
     connectionStore.setCurrentConnection(connectionStore.connections[0])
   }

@@ -20,8 +20,7 @@ const props = defineProps<Props>()
 
 const isUp = computed(() => {
   const last = props.connection.lastConnected
-  if (last && last !== 'Invalid Date') return true
-  return Boolean(props.connection.host && props.connection.port)
+  return Boolean(last && last !== 'Invalid Date')
 })
 
 const statusType = computed(() => (isUp.value ? 'success' : 'danger'))

@@ -59,6 +59,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useConnectionStore } from '@/stores/connection'
@@ -77,7 +78,7 @@ const editingConnection = ref<ConnectionDto | null>(null)
 const deletingConnectionName = ref('')
 const isDeleting = ref(false)
 
-const { connections, loading, error } = connectionStore
+const { connections, loading, error } = storeToRefs(connectionStore)
 
 const refreshConnections = async () => {
   await connectionStore.fetchConnections()
@@ -178,6 +179,7 @@ watch(connections, (newConnections) => {
 onMounted(async () => {
   console.log('연결 목록 로드 시작...')
   await connectionStore.fetchConnections()
+  await connectionStore.judgeConnections()
   
   if (connectionStore.connections.length > 0 && !connectionStore.currentConnection) {
     const firstConnection = connectionStore.connections[0]

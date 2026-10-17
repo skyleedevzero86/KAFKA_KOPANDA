@@ -207,7 +207,7 @@ class KafkaApplicationService(
                     latency = latency,
                     brokerInfo = BrokerInfo(
                         count = clusterDescription.size,
-                        versions = listOf("3.9.0")
+                        versions = listOf("7.7.1")
                     )
                 )
             } else {
