@@ -82,7 +82,8 @@ class Topic(
 
             val topic = Topic(
                 name = topicName,
-                config = topicConfig
+                config = topicConfig,
+                isInternal = topicName.isInternal
             )
 
             topic.addDomainEvent(TopicCreatedEvent(topic))

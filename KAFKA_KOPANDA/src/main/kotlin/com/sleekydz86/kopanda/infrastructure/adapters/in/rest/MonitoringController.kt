@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/monitoring")
@@ -1171,7 +1172,7 @@ class MonitoringController(
             "topicsHealth" to topicsHealth,
             "consumerGroupMetrics" to consumerGroupMetrics,
             "performanceMetrics" to performanceMetrics,
-            "timestamp" to java.time.LocalDateTime.now()
+            "timestamp" to LocalDateTime.now()
         )
 
         return ResponseEntity.ok(dashboardData)

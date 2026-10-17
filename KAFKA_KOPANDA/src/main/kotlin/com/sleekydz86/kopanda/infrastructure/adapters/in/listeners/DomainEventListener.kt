@@ -7,6 +7,7 @@ import com.sleekydz86.kopanda.domain.events.*
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 import org.slf4j.LoggerFactory
+import java.time.LocalDateTime
 
 @Component
 class DomainEventListener(
@@ -66,7 +67,7 @@ class DomainEventListener(
                     description = "Connection deleted: ${event.connection.name.value}",
                     details = mapOf(
                         "connectionName" to event.connection.name.value,
-                        "deletedAt" to java.time.LocalDateTime.now().toString()
+                        "deletedAt" to LocalDateTime.now().toString()
                     )
                 )
             )

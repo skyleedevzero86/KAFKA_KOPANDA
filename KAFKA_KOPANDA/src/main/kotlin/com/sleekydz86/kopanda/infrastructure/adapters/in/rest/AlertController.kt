@@ -2,6 +2,9 @@ package com.sleekydz86.kopanda.infrastructure.adapters.`in`.rest
 
 import com.sleekydz86.kopanda.application.dto.response.AlertDto
 import com.sleekydz86.kopanda.application.ports.`in`.AlertManagementUseCase
+import com.sleekydz86.kopanda.domain.valueobjects.common.IssueSeverity
+import com.sleekydz86.kopanda.domain.valueobjects.common.IssueType
+import java.time.LocalDateTime
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Content
@@ -125,12 +128,12 @@ class AlertController(
             val alerts = alertManagementUseCase.getActiveAlerts(connectionId)
             return ResponseEntity.ok(alerts.firstOrNull() ?: AlertDto(
                 id = "test-alert-${System.currentTimeMillis()}",
-                type = com.sleekydz86.kopanda.domain.valueobjects.common.IssueType.CONNECTION_ERROR,
-                severity = com.sleekydz86.kopanda.domain.valueobjects.common.IssueSeverity.MEDIUM,
+                type = IssueType.CONNECTION_ERROR,
+                severity = IssueSeverity.MEDIUM,
                 title = "테스트 알림",
                 message = "이것은 테스트 알림입니다.",
                 connectionId = connectionId,
-                timestamp = java.time.LocalDateTime.now()
+                timestamp = LocalDateTime.now()
             ))
         } catch (e: Exception) {
             return ResponseEntity.status(500).build()

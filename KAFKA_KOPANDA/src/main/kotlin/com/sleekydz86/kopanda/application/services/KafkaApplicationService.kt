@@ -51,6 +51,8 @@ import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
 import com.sleekydz86.kopanda.shared.domain.DomainException
+import org.apache.kafka.clients.admin.AdminClient
+import org.apache.kafka.clients.admin.AdminClientConfig
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -87,7 +89,6 @@ class KafkaApplicationService(
 
             val existingConnection = connectionRepository.findByName(request.name)
             if (existingConnection != null) {
-                logger.warn("중복된 연결 이름: ${request.name}")
                 throw DomainException("이미 존재하는 연결 이름입니다: ${request.name}")
             }
 
@@ -122,6 +123,9 @@ class KafkaApplicationService(
             connectionHistoryRepository.save(history)
 
             return savedConnection.toConnectionDto()
+        } catch (e: DomainException) {
+            logger.warn("연결 생성 실패: ${request.name} - ${e.message}")
+            throw e
         } catch (e: Exception) {
             logger.error("연결 생성 실패: ${request.name}", e)
             throw e
@@ -338,7 +342,7 @@ class KafkaApplicationService(
             }
         }
         val endTime = LocalDateTime.now()
-        val duration = java.time.Duration.between(startTime, endTime)
+        val duration = Duration.between(startTime, endTime)
 
         logger.info(
             "Connection status refresh completed at $endTime " +
@@ -560,7 +564,7 @@ class KafkaApplicationService(
 
     override suspend fun getConnectionMetrics(id: String): ConnectionMetricsDto {
         val connection = getConnectionOrThrow(id)
-        val uptime = java.time.Duration.between(connection.createdAt, LocalDateTime.now())
+        val uptime = Duration.between(connection.createdAt, LocalDateTime.now())
 
         return ConnectionMetricsDto(
             connectionId = id,
@@ -694,22 +698,22 @@ class KafkaApplicationService(
         )
     }
 
-    private fun createAdminClient(connection: Connection): org.apache.kafka.clients.admin.AdminClient {
-        val props = java.util.Properties()
-        props[org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = connection.getConnectionString()
-        props[org.apache.kafka.clients.admin.AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
-        props[org.apache.kafka.clients.admin.AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 5000
+    private fun createAdminClient(connection: Connection): AdminClient {
+        val props = Properties()
+        props[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = connection.getConnectionString()
+        props[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
+        props[AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 5000
 
         if (connection.sslEnabled) {
-            props[org.apache.kafka.clients.admin.AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SSL"
+            props[AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SSL"
         }
 
         if (connection.saslEnabled && connection.username != null) {
-            props[org.apache.kafka.clients.admin.AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SASL_PLAINTEXT"
+            props[AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SASL_PLAINTEXT"
             props["sasl.mechanism"] = "PLAIN"
             props["sasl.jaas.config"] = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${connection.username}\" password=\"${connection.password}\";"
         }
 
-        return org.apache.kafka.clients.admin.AdminClient.create(props)
+        return AdminClient.create(props)
     }
 }

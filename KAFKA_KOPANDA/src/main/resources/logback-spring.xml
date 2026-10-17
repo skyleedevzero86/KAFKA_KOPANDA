@@ -28,8 +28,8 @@
         </root>
 
         <logger name="com.kafkapanda" level="DEBUG"/>
-        <logger name="org.apache.kafka" level="DEBUG"/>
-        <logger name="org.springframework.web" level="DEBUG"/>
+        <logger name="org.apache.kafka" level="WARN"/>
+        <logger name="org.springframework.web" level="INFO"/>
     </springProfile>
 
     <springProfile name="prod">

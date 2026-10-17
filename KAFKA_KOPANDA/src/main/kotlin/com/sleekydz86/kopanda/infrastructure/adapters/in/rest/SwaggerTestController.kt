@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/test")
@@ -36,7 +37,7 @@ class SwaggerTestController {
             HealthResponse(
                 status = "UP",
                 message = "Kafka Kopanda API is running",
-                timestamp = java.time.LocalDateTime.now()
+                timestamp = LocalDateTime.now()
             )
         )
     }
@@ -62,7 +63,7 @@ class SwaggerTestController {
         return ResponseEntity.ok(
             EchoResponse(
                 message = request.message,
-                timestamp = java.time.LocalDateTime.now(),
+                timestamp = LocalDateTime.now(),
                 receivedData = request.data
             )
         )
@@ -78,7 +79,7 @@ data class HealthResponse(
     val message: String,
 
     @field:Schema(description = "응답 시간", example = "2024-01-01T10:00:00")
-    val timestamp: java.time.LocalDateTime
+    val timestamp: LocalDateTime
 )
 
 @Schema(description = "에코 요청")
@@ -96,7 +97,7 @@ data class EchoResponse(
     val message: String,
 
     @field:Schema(description = "응답 시간", example = "2024-01-01T10:00:00")
-    val timestamp: java.time.LocalDateTime,
+    val timestamp: LocalDateTime,
 
     @field:Schema(description = "수신된 데이터", example = "{\"key\": \"value\"}")
     val receivedData: Map<String, Any>

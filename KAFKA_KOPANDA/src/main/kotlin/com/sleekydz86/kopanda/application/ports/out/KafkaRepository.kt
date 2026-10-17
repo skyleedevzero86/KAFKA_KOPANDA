@@ -1,8 +1,9 @@
 package com.sleekydz86.kopanda.application.ports.out
 
 import com.sleekydz86.kopanda.domain.entities.Connection
-import com.sleekydz86.kopanda.domain.entities.Topic
 import com.sleekydz86.kopanda.domain.entities.Message
+import com.sleekydz86.kopanda.domain.entities.Partition
+import com.sleekydz86.kopanda.domain.entities.Topic
 
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
@@ -30,7 +31,7 @@ interface KafkaRepository {
     suspend fun getMessages(
         connection: Connection,
         topic: Topic,
-        partition: com.sleekydz86.kopanda.domain.entities.Partition,
+        partition: Partition,
         offset: Offset,
         limit: Int
     ): List<Message>

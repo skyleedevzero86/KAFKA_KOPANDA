@@ -18,19 +18,15 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const statusType = computed(() => {
-  if (props.connection.lastConnected && props.connection.lastConnected !== 'Invalid Date') {
-    return 'success'
-  }
-  return 'danger'
+const isUp = computed(() => {
+  const last = props.connection.lastConnected
+  if (last && last !== 'Invalid Date') return true
+  return Boolean(props.connection.host && props.connection.port)
 })
 
-const statusText = computed(() => {
-  if (props.connection.lastConnected && props.connection.lastConnected !== 'Invalid Date') {
-    return '연결됨'
-  }
-  return '연결 안됨'
-})
+const statusType = computed(() => (isUp.value ? 'success' : 'danger'))
+
+const statusText = computed(() => (isUp.value ? '연결됨' : '연결 안됨'))
 </script>
 
 <style scoped>

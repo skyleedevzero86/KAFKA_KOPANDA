@@ -1,5 +1,7 @@
 package com.sleekydz86.kopanda.application.dto.request
 
+import java.time.LocalDateTime
+
 data class PartitionDetailDto(
     val topicName: String,
     val partitionNumber: Int,
@@ -11,5 +13,5 @@ data class PartitionDetailDto(
     val messageCount: Long,
     val isHealthy: Boolean,
     val isUnderReplicated: Boolean,
-    val lastUpdated: java.time.LocalDateTime
+    val lastUpdated: LocalDateTime
 )
