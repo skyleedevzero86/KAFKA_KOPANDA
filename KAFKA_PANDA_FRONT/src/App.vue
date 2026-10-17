@@ -10,13 +10,13 @@
           router
           class="sidebar-menu"
         >
-          <el-menu-item index="/connections">
-            <el-icon><Connection /></el-icon>
-            <span>연결 관리</span>
-          </el-menu-item>
           <el-menu-item index="/">
             <el-icon><Monitor /></el-icon>
             <span>대시보드</span>
+          </el-menu-item>
+          <el-menu-item index="/connections">
+            <el-icon><Connection /></el-icon>
+            <span>연결 관리</span>
           </el-menu-item>
           <el-menu-item index="/topics">
             <el-icon><Document /></el-icon>

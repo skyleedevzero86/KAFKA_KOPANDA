@@ -179,7 +179,7 @@ const formatTime = (timestamp: string) => {
   }
 }
 
-let refreshInterval: NodeJS.Timeout | null = null
+let refreshInterval: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   fetchNotifications()

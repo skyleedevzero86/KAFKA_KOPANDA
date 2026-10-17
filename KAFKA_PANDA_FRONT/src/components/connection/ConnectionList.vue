@@ -145,7 +145,7 @@ const confirmDelete = async () => {
 
   isDeleting.value = true
   try {
-    const connectionToDelete = connections.find(c => c.name === deletingConnectionName.value)
+    const connectionToDelete = connections.value.find((c: ConnectionDto) => c.id === deletingConnectionName.value)
     if (connectionToDelete) {
       await connectionStore.deleteConnection(connectionToDelete.id)
       ElMessage.success('연결이 삭제되었습니다.')
