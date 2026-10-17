@@ -107,6 +107,7 @@ logging:
     com.sleekydz86.kopanda: INFO
     org.hibernate.SQL: WARN
     org.hibernate.tool.schema: WARN
+    org.hibernate.tool.schema.internal.ExceptionHandlerLoggedImpl: ERROR
     org.springframework.orm.jpa: WARN
     org.springframework.transaction: WARN
     org.springframework.data.repository.config: WARN
