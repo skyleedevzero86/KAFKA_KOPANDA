@@ -146,7 +146,7 @@ class ActivityServiceTest {
         assertThat(result).hasSize(1)
         val activityDto = result[0]
         assertThat(activityDto.id).isEqualTo(activity.getId().value)
-        assertThat(activityDto.type).isEqualTo(activity.type)
+        assertThat(activityDto.type.name).isEqualTo(activity.type.value)
         assertThat(activityDto.title).isEqualTo(activity.title.value)
         assertThat(activityDto.message).isEqualTo(activity.message.value)
         assertThat(activityDto.connectionId).isEqualTo(activity.connectionId)
@@ -172,7 +172,7 @@ class ActivityServiceTest {
         val result = activityService.getRecentActivities(8)
 
         // then
-        val expectedIcons = listOf("🔗", "📝", "⚠️", "❌", "🔄", "🗑️", "📤", "️")
+        val expectedIcons = listOf("🔗", "📝", "⚠️", "❌", "🔄", "🗑️", "📤", "🗑️")
         result.forEachIndexed { index, activityDto ->
             assertThat(activityDto.icon).isEqualTo(expectedIcons[index])
         }

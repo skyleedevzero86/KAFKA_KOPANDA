@@ -180,6 +180,7 @@ class TopicTest {
     fun `토픽을 삭제할 수 있다`() {
         // given
         val topic = Topic.create("test-topic", 3, 2)
+        topic.clearDomainEvents()
 
         // when
         topic.delete()

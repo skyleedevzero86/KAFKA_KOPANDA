@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.RequestBuilder
+import org.springframework.test.web.servlet.ResultActions
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
@@ -44,6 +46,11 @@ class ConnectionControllerTest {
             .build()
     }
 
+    private fun MockMvc.performAsync(builder: RequestBuilder): ResultActions {
+        val result = perform(builder).andExpect(request().asyncStarted()).andReturn()
+        return perform(asyncDispatch(result))
+    }
+
     @Test
     fun `연결 목록을 조회할 수 있다`() = runTest {
         // given
@@ -54,7 +61,7 @@ class ConnectionControllerTest {
         coEvery { connectionManagementUseCase.getConnections() } returns connections
 
         // when & then
-        mockMvc.perform(get("/connections"))
+        mockMvc.performAsync(get("/connections"))
             .andExpect(status().isOk)
             .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$").isArray)
@@ -72,7 +79,7 @@ class ConnectionControllerTest {
         coEvery { connectionManagementUseCase.getConnection(connectionId) } returns connection
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}", connectionId))
+        mockMvc.performAsync(get("/connections/{connectionId}", connectionId))
             .andExpect(status().isOk)
             .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.id").value(connectionId))
@@ -88,7 +95,7 @@ class ConnectionControllerTest {
         coEvery { connectionManagementUseCase.getConnection(connectionId) } throws DomainException("Connection not found")
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}", connectionId))
+        mockMvc.performAsync(get("/connections/{connectionId}", connectionId))
             .andExpect(status().isNotFound)
 
         coVerify { connectionManagementUseCase.getConnection(connectionId) }
@@ -108,7 +115,7 @@ class ConnectionControllerTest {
         coEvery { connectionManagementUseCase.createConnection(any()) } returns createdConnection
 
         // when & then
-        mockMvc.perform(
+        mockMvc.performAsync(
             post("/connections")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(createRequest))
@@ -133,7 +140,7 @@ class ConnectionControllerTest {
         coEvery { connectionManagementUseCase.updateConnection(connectionId, any()) } returns updatedConnection
 
         // when & then
-        mockMvc.perform(
+        mockMvc.performAsync(
             put("/connections/{connectionId}", connectionId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest))
@@ -151,7 +158,7 @@ class ConnectionControllerTest {
         coEvery { connectionManagementUseCase.deleteConnection(connectionId) } returns Unit
 
         // when & then
-        mockMvc.perform(delete("/connections/{connectionId}", connectionId))
+        mockMvc.performAsync(delete("/connections/{connectionId}", connectionId))
             .andExpect(status().isNoContent)
 
         coVerify { connectionManagementUseCase.deleteConnection(connectionId) }
@@ -169,12 +176,12 @@ class ConnectionControllerTest {
             success = true,
             message = "Connection successful",
             latency = 50L,
-            brokerInfo = BrokerInfo(3, listOf("7.9.0"))
+            brokerInfo = BrokerInfo(3, emptyList())
         )
         coEvery { connectionManagementUseCase.testConnection(any()) } returns testResult
 
         // when & then
-        mockMvc.perform(
+        mockMvc.performAsync(
             post("/connections/test")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testRequest))
@@ -200,7 +207,7 @@ class ConnectionControllerTest {
         coEvery { connectionManagementUseCase.getConnectionStatus(connectionId) } returns status
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}/status", connectionId))
+        mockMvc.performAsync(get("/connections/{connectionId}/status", connectionId))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.connectionId").value(connectionId))
             .andExpect(jsonPath("$.status").value("CONNECTED"))
@@ -219,7 +226,7 @@ class ConnectionControllerTest {
         coEvery { kafkaManagementUseCase.getTopics(connectionId) } returns topics
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}/topics", connectionId))
+        mockMvc.performAsync(get("/connections/{connectionId}/topics", connectionId))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$").isArray)
             .andExpect(jsonPath("$[0].name").value("topic-1"))
@@ -239,7 +246,7 @@ class ConnectionControllerTest {
         coEvery { kafkaManagementUseCase.getConsumerGroups(connectionId) } returns consumerGroups
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}/consumer-groups", connectionId))
+        mockMvc.performAsync(get("/connections/{connectionId}/consumer-groups", connectionId))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$").isArray)
             .andExpect(jsonPath("$[0].groupId").value("group-1"))
@@ -256,7 +263,7 @@ class ConnectionControllerTest {
         coEvery { kafkaManagementUseCase.getMetrics(connectionId) } returns metrics
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}/metrics", connectionId))
+        mockMvc.performAsync(get("/connections/{connectionId}/metrics", connectionId))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.brokerCount").value(3))
             .andExpect(jsonPath("$.topicCount").value(10))
@@ -272,7 +279,7 @@ class ConnectionControllerTest {
         coEvery { connectionManagementUseCase.getConnectionHealth(connectionId) } returns health
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}/health", connectionId))
+        mockMvc.performAsync(get("/connections/{connectionId}/health", connectionId))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.connectionId").value(connectionId))
             .andExpect(jsonPath("$.isHealthy").value(true))
@@ -288,7 +295,7 @@ class ConnectionControllerTest {
         coEvery { connectionManagementUseCase.pingConnection(connectionId) } returns pingResult
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}/ping", connectionId))
+        mockMvc.performAsync(get("/connections/{connectionId}/ping", connectionId))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.connectionId").value(connectionId))
             .andExpect(jsonPath("$.isAlive").value(true))
@@ -307,7 +314,7 @@ class ConnectionControllerTest {
         coEvery { connectionManagementUseCase.getConnectionHistory(connectionId, 10) } returns history
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}/history", connectionId)
+        mockMvc.performAsync(get("/connections/{connectionId}/history", connectionId)
             .param("limit", "10"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$").isArray)
@@ -323,7 +330,7 @@ class ConnectionControllerTest {
         coEvery { connectionManagementUseCase.refreshAllConnectionStatuses() } returns Unit
 
         // when & then
-        mockMvc.perform(post("/connections/refresh-status"))
+        mockMvc.performAsync(post("/connections/refresh-status"))
             .andExpect(status().isOk)
 
         coVerify { connectionManagementUseCase.refreshAllConnectionStatuses() }

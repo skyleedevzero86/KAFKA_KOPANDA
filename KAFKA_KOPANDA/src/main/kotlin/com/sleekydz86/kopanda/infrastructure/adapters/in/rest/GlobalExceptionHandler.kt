@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.context.request.WebRequest
+import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -46,6 +47,21 @@ class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errorResponse)
     }
     
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun handleNoResourceFoundException(ex: NoResourceFoundException, request: WebRequest): ResponseEntity<ErrorResponse> {
+        logger.warn("Resource not found: ${ex.message}")
+
+        val errorResponse = ErrorResponse(
+            timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+            status = HttpStatus.NOT_FOUND.value(),
+            error = "Not Found",
+            message = ex.message ?: "Resource not found",
+            path = request.getDescription(false).removePrefix("uri=")
+        )
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse)
+    }
+
     @ExceptionHandler(Exception::class)
     fun handleGenericException(ex: Exception, request: WebRequest): ResponseEntity<ErrorResponse> {
         logger.error("Unexpected error occurred", ex)
