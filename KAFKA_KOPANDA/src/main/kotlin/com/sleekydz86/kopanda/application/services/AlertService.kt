@@ -28,7 +28,7 @@ class AlertService(
 
     override fun acknowledgeAlert(alertId: String, acknowledgedBy: String): AlertDto {
         val alert = alertRepository.findById(alertId)
-            ?: throw IllegalArgumentException("Alert not found with id: $alertId")
+            ?: throw IllegalArgumentException("알림을 찾을 수 없습니다: $alertId")
 
         alert.acknowledge(acknowledgedBy)
         val savedAlert = alertRepository.save(alert)
@@ -47,7 +47,7 @@ class AlertService(
 
     override fun getAlertById(id: String): AlertDto {
         val alert = alertRepository.findById(id)
-            ?: throw IllegalArgumentException("Alert not found with id: $id")
+            ?: throw IllegalArgumentException("알림을 찾을 수 없습니다: $id")
         return alert.toDto()
     }
 
@@ -167,9 +167,9 @@ class AlertService(
             )
 
             val savedAlert = alertRepository.save(alert)
-            println("Alert created successfully: ${savedAlert.id} - ${savedAlert.title}")
+            println("알림이 생성되었습니다: ${savedAlert.id} - ${savedAlert.title}")
         } catch (e: Exception) {
-            println("Failed to create alert: ${e.message}")
+            println("알림 생성에 실패했습니다: ${e.message}")
             e.printStackTrace()
         }
     }

@@ -5,7 +5,7 @@ import jakarta.persistence.Embeddable
 @Embeddable
 data class PartitionNumber(val value: Int) {
     init {
-        require(value >= 0) { "Partition number must be non-negative" }
+        require(value >= 0) { "파티션 번호는 0 이상이어야 합니다" }
     }
 
     fun increment(): PartitionNumber = PartitionNumber(value + 1)

@@ -17,7 +17,7 @@ export const useConnectionStore = defineStore('connection', () => {
       connections.value = await connectionService.getConnections()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch connections'
-      console.error('Failed to fetch connections:', err)
+      console.error('연결 목록 조회 실패:', err)
     } finally {
       loading.value = false
     }
@@ -32,7 +32,7 @@ export const useConnectionStore = defineStore('connection', () => {
       return newConnection
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to create connection'
-      console.error('Failed to create connection:', err)
+      console.error('연결 생성 실패:', err)
       throw err
     } finally {
       loading.value = false
@@ -54,7 +54,7 @@ export const useConnectionStore = defineStore('connection', () => {
       return updatedConnection
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to update connection'
-      console.error('Failed to update connection:', err)
+      console.error('연결 수정 실패:', err)
       throw err
     } finally {
       loading.value = false
@@ -72,7 +72,7 @@ export const useConnectionStore = defineStore('connection', () => {
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to delete connection'
-      console.error('Failed to delete connection:', err)
+      console.error('연결 삭제 실패:', err)
       throw err
     } finally {
       loading.value = false
@@ -86,7 +86,7 @@ export const useConnectionStore = defineStore('connection', () => {
       return await connectionService.testConnection(request)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to test connection'
-      console.error('Failed to test connection:', err)
+      console.error('연결 테스트 실패:', err)
       throw err
     } finally {
       loading.value = false
@@ -113,7 +113,7 @@ export const useConnectionStore = defineStore('connection', () => {
       return await connectionService.getConnectionStatus(id)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to get connection status'
-      console.error('Failed to get connection status:', err)
+      console.error('연결 상태 조회 실패:', err)
       throw err
     } finally {
       loading.value = false
@@ -136,7 +136,7 @@ export const useConnectionStore = defineStore('connection', () => {
       return newConnection
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to create test connection'
-      console.error('Failed to create test connection:', err)
+      console.error('테스트 연결 생성 실패:', err)
       throw err
     } finally {
       loading.value = false

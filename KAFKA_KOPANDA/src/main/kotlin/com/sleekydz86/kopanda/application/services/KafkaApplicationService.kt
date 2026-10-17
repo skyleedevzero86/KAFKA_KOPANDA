@@ -203,7 +203,7 @@ class KafkaApplicationService(
 
                 ConnectionTestResult(
                     success = true,
-                    message = "Connection successful",
+                    message = "연결에 성공했습니다",
                     latency = latency,
                     brokerInfo = BrokerInfo(
                         count = clusterDescription.size,
@@ -213,13 +213,13 @@ class KafkaApplicationService(
             } else {
                 ConnectionTestResult(
                     success = false,
-                    message = "Connection failed"
+                    message = "연결에 실패했습니다"
                 )
             }
         } catch (e: Exception) {
             ConnectionTestResult(
                 success = false,
-                message = "Connection failed: ${e.message}"
+                message = "연결에 실패했습니다: ${e.message}"
             )
         }
     }
@@ -306,7 +306,7 @@ class KafkaApplicationService(
         val startTime = LocalDateTime.now()
         val connections = connectionRepository.findAll()
 
-        logger.info("Starting connection status refresh at $startTime for ${connections.size} connections")
+        logger.info("연결 상태 새로고침 시작: $startTime, 대상 ${connections.size}개")
 
         var successCount = 0
         var failureCount = 0
@@ -316,19 +316,19 @@ class KafkaApplicationService(
             val connectionName = connection.name.value
 
             try {
-                logger.debug("Testing connection: $connectionName ($connectionId)")
+                logger.debug("연결 확인: $connectionName ($connectionId)")
 
                 val isConnected = kafkaRepository.testConnection(connection)
                 if (isConnected) {
                     connection.markAsConnected()
                     connectionRepository.save(connection)
                     successCount++
-                    logger.debug("✓ Connection '$connectionName' ($connectionId) is healthy and status updated")
+                    logger.debug("연결 '$connectionName' ($connectionId)이 정상이며 상태가 갱신되었습니다")
                 } else {
                     connection.markAsDisconnected()
                     connectionRepository.save(connection)
                     failureCount++
-                    logger.warn("✗ Connection '$connectionName' ($connectionId) is not responding")
+                    logger.warn("연결 '$connectionName' ($connectionId)이 응답하지 않습니다")
                 }
 
             } catch (e: Exception) {
@@ -336,7 +336,7 @@ class KafkaApplicationService(
                 connectionRepository.save(connection)
                 failureCount++
                 logger.error(
-                    "✗ Failed to test connection '$connectionName' ($connectionId): ${e.message}",
+                    "연결 '$connectionName' ($connectionId) 확인 실패: ${e.message}",
                     e
                 )
             }
@@ -345,11 +345,11 @@ class KafkaApplicationService(
         val duration = Duration.between(startTime, endTime)
 
         logger.info(
-            "Connection status refresh completed at $endTime " +
-                    "(duration: ${duration.toMillis()}ms, " +
-                    "successful: $successCount, " +
-                    "failed: $failureCount, " +
-                    "total: ${connections.size})"
+            "연결 상태 새로고침 완료: $endTime " +
+                    "(소요: ${duration.toMillis()}ms, " +
+                    "성공: $successCount, " +
+                    "실패: $failureCount, " +
+                    "전체: ${connections.size})"
         )
     }
 
@@ -362,7 +362,7 @@ class KafkaApplicationService(
     override suspend fun getTopicDetails(connectionId: String, topicName: String): TopicDetailDto {
         val connection = getConnectionOrThrow(connectionId)
         val topic = kafkaRepository.getTopicDetails(connection, TopicName(topicName))
-            ?: throw DomainException("Topic '$topicName' not found")
+            ?: throw DomainException("토픽을 찾을 수 없습니다: $topicName")
         return topic.toTopicDetailDto()
     }
 
@@ -408,10 +408,10 @@ class KafkaApplicationService(
     ): PaginatedResponse<MessageDto> {
         val connection = getConnectionOrThrow(connectionId)
         val topic = kafkaRepository.getTopicDetails(connection, TopicName(topicName))
-            ?: throw DomainException("Topic '$topicName' not found")
+            ?: throw DomainException("토픽을 찾을 수 없습니다: $topicName")
 
         val partition = topic.getPartition(partitionNumber)
-            ?: throw DomainException("Partition $partitionNumber not found in topic '$topicName'")
+            ?: throw DomainException("토픽 '$topicName'에서 파티션 $partitionNumber 번을 찾을 수 없습니다")
 
         val actualOffset = when (offsetType) {
             OffsetType.EARLIEST -> partition.earliestOffset
@@ -439,7 +439,7 @@ class KafkaApplicationService(
     override suspend fun sendMessage(connectionId: String, topicName: String, request: SendMessageRequest) {
         val connection = getConnectionOrThrow(connectionId)
         val topic = kafkaRepository.getTopicDetails(connection, TopicName(topicName))
-            ?: throw DomainException("Topic '$topicName' not found")
+            ?: throw DomainException("토픽을 찾을 수 없습니다: $topicName")
 
         kafkaRepository.sendMessage(
             connection,
@@ -624,7 +624,7 @@ class KafkaApplicationService(
 
     private suspend fun getConnectionOrThrow(id: String): Connection {
         return connectionRepository.findById(ConnectionId(id))
-            ?: throw DomainException("Connection '$id' not found")
+            ?: throw DomainException("연결을 찾을 수 없습니다: $id")
     }
 
     private fun Connection.toConnectionDto(): ConnectionDto {

@@ -220,7 +220,7 @@ class TopicTest {
             partitionNumber = PartitionNumber(partitionNumber),
             leader = BrokerId(0),
             replicas = listOf(BrokerId(0), BrokerId(1)),
-            inSyncReplicas = listOf(BrokerId(0)), // ISR이 복제본보다 적음
+            inSyncReplicas = listOf(BrokerId(0)),
             earliestOffset = 0L,
             latestOffset = 100L,
             messageCount = 100L

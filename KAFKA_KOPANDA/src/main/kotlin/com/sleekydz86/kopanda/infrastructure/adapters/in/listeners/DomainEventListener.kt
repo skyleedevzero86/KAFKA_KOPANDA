@@ -23,7 +23,7 @@ class DomainEventListener(
                 ConnectionHistory.create(
                     connectionId = event.connection.getId(),
                     eventType = "CONNECTION_CREATED",
-                    description = "Connection created: ${event.connection.name.value}",
+                    description = "연결이 생성되었습니다: ${event.connection.name.value}",
                     details = mapOf(
                         "connectionName" to event.connection.name.value,
                         "host" to event.connection.host.value,
@@ -31,9 +31,9 @@ class DomainEventListener(
                     )
                 )
             )
-            logger.info("Connection history saved for created connection: ${event.connection.name.value}")
+            logger.info("생성된 연결의 이력을 저장했습니다: ${event.connection.name.value}")
         } catch (e: Exception) {
-            logger.error("Failed to save connection history for created connection: ${event.connection.name.value}", e)
+            logger.error("생성된 연결의 이력 저장에 실패했습니다: ${event.connection.name.value}", e)
         }
     }
 
@@ -44,16 +44,16 @@ class DomainEventListener(
                 ConnectionHistory.create(
                     connectionId = event.connection.getId(),
                     eventType = "CONNECTION_UPDATED",
-                    description = "Connection updated: ${event.connection.name.value}",
+                    description = "연결이 수정되었습니다: ${event.connection.name.value}",
                     details = mapOf(
                         "connectionName" to event.connection.name.value,
                         "updatedAt" to event.connection.updatedAt.toString()
                     )
                 )
             )
-            logger.info("Connection history saved for updated connection: ${event.connection.name.value}")
+            logger.info("수정된 연결의 이력을 저장했습니다: ${event.connection.name.value}")
         } catch (e: Exception) {
-            logger.error("Failed to save connection history for updated connection: ${event.connection.name.value}", e)
+            logger.error("수정된 연결의 이력 저장에 실패했습니다: ${event.connection.name.value}", e)
         }
     }
 
@@ -64,16 +64,16 @@ class DomainEventListener(
                 ConnectionHistory.create(
                     connectionId = event.connection.getId(),
                     eventType = "CONNECTION_DELETED",
-                    description = "Connection deleted: ${event.connection.name.value}",
+                    description = "연결이 삭제되었습니다: ${event.connection.name.value}",
                     details = mapOf(
                         "connectionName" to event.connection.name.value,
                         "deletedAt" to LocalDateTime.now().toString()
                     )
                 )
             )
-            logger.info("Connection history saved for deleted connection: ${event.connection.name.value}")
+            logger.info("삭제된 연결의 이력을 저장했습니다: ${event.connection.name.value}")
         } catch (e: Exception) {
-            logger.error("Failed to save connection history for deleted connection: ${event.connection.name.value}", e)
+            logger.error("삭제된 연결의 이력 저장에 실패했습니다: ${event.connection.name.value}", e)
         }
     }
 
@@ -81,17 +81,17 @@ class DomainEventListener(
     suspend fun handleConnectionStatusChanged(event: ConnectionStatusChangedEvent) {
         try {
             val statusDescription = when (event.newStatus) {
-                Connection.ConnectionStatus.CONNECTED -> "Connection established"
-                Connection.ConnectionStatus.DISCONNECTED -> "Connection lost"
-                Connection.ConnectionStatus.CONNECTING -> "Connection attempt"
-                Connection.ConnectionStatus.ERROR -> "Connection error: ${event.errorMessage ?: "Unknown error"}"
+                Connection.ConnectionStatus.CONNECTED -> "연결되었습니다"
+                Connection.ConnectionStatus.DISCONNECTED -> "연결이 끊어졌습니다"
+                Connection.ConnectionStatus.CONNECTING -> "연결을 시도합니다"
+                Connection.ConnectionStatus.ERROR -> "연결 오류: ${event.errorMessage ?: "알 수 없는 오류"}"
             }
 
             connectionHistoryRepository.save(
                 ConnectionHistory.create(
                     connectionId = event.connection.getId(),
                     eventType = "CONNECTION_STATUS_CHANGED",
-                    description = "Status changed to ${event.newStatus}: ${event.connection.name.value} - $statusDescription",
+                    description = "상태가 ${event.newStatus}로 변경되었습니다: ${event.connection.name.value} - $statusDescription",
                     details = mapOf(
                         "previousStatus" to event.previousStatus.name,
                         "newStatus" to event.newStatus.name,
@@ -100,27 +100,27 @@ class DomainEventListener(
                     )
                 )
             )
-            logger.info("Connection status history saved: ${event.connection.name.value} ${event.previousStatus} -> ${event.newStatus}")
+            logger.info("연결 상태 이력을 저장했습니다: ${event.connection.name.value} ${event.previousStatus} -> ${event.newStatus}")
         } catch (e: Exception) {
-            logger.error("Failed to save connection status history: ${event.connection.name.value}", e)
+            logger.error("연결 상태 이력 저장에 실패했습니다: ${event.connection.name.value}", e)
         }
     }
 
     @EventListener
     suspend fun handleTopicCreated(event: TopicCreatedEvent) {
         try {
-            logger.info("Topic created: ${event.topic.name.value}")
+            logger.info("토픽이 생성되었습니다: ${event.topic.name.value}")
         } catch (e: Exception) {
-            logger.error("Failed to handle topic created event: ${event.topic.name.value}", e)
+            logger.error("토픽 생성 이벤트 처리에 실패했습니다: ${event.topic.name.value}", e)
         }
     }
 
     @EventListener
     suspend fun handleTopicDeleted(event: TopicDeletedEvent) {
         try {
-            logger.info("Topic deleted: ${event.topic.name.value}")
+            logger.info("토픽이 삭제되었습니다: ${event.topic.name.value}")
         } catch (e: Exception) {
-            logger.error("Failed to handle topic deleted event: ${event.topic.name.value}", e)
+            logger.error("토픽 삭제 이벤트 처리에 실패했습니다: ${event.topic.name.value}", e)
         }
     }
 }

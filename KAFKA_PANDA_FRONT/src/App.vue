@@ -81,7 +81,6 @@ import {
 const route = useRoute()
 const router = useRouter()
 
-// 안전한 라우트 접근을 위한 computed 속성들
 const currentPath = computed(() => route?.path || '/')
 const currentRouteName = computed(() => route?.name || 'Dashboard')
 

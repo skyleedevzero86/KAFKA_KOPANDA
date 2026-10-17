@@ -20,7 +20,7 @@ class WebSocketEventListener(
 
     @EventListener
     suspend fun handleConnectionCreatedEvent(event: ConnectionCreatedEvent) {
-        logger.info("Handling ConnectionCreatedEvent for connection: ${event.connection.getId().value}")
+        logger.info("연결 생성 이벤트 처리: ${event.connection.getId().value}")
         webSocketController.broadcastGlobalUpdate(
             "connection-created",
             mapOf(
@@ -34,13 +34,13 @@ class WebSocketEventListener(
 
     @EventListener
     suspend fun handleConnectionUpdatedEvent(event: ConnectionUpdatedEvent) {
-        logger.info("Handling ConnectionUpdatedEvent for connection: ${event.connection.getId().value}")
+        logger.info("연결 수정 이벤트 처리: ${event.connection.getId().value}")
         webSocketController.broadcastConnectionChange(event.connection.getId().value)
     }
 
     @EventListener
     suspend fun handleConnectionDeletedEvent(event: ConnectionDeletedEvent) {
-        logger.info("Handling ConnectionDeletedEvent for connection: ${event.connection.getId().value}")
+        logger.info("연결 삭제 이벤트 처리: ${event.connection.getId().value}")
         webSocketController.broadcastGlobalUpdate(
             "connection-deleted",
             mapOf(
@@ -52,7 +52,7 @@ class WebSocketEventListener(
 
     @EventListener
     suspend fun handleTopicCreatedEvent(event: TopicCreatedEvent) {
-        logger.info("Handling TopicCreatedEvent for topic: ${event.topic.name.value}")
+        logger.info("토픽 생성 이벤트 처리: ${event.topic.name.value}")
         webSocketController.broadcastGlobalUpdate(
             "topic-created",
             mapOf(
@@ -65,7 +65,7 @@ class WebSocketEventListener(
 
     @EventListener
     suspend fun handleTopicDeletedEvent(event: TopicDeletedEvent) {
-        logger.info("Handling TopicDeletedEvent for topic: ${event.topic.name.value}")
+        logger.info("토픽 삭제 이벤트 처리: ${event.topic.name.value}")
         webSocketController.broadcastGlobalUpdate(
             "topic-deleted",
             mapOf(
@@ -76,8 +76,7 @@ class WebSocketEventListener(
 
     @EventListener
     suspend fun handleGenericDomainEvent(event: DomainEvent) {
-        logger.debug("Handling generic domain event: ${event::class.simpleName}")
-        // 기본 도메인 이벤트에 대한 처리
+        logger.debug("일반 도메인 이벤트 처리: ${event::class.simpleName}")
         webSocketController.broadcastGlobalUpdate(
             "domain-event",
             mapOf(

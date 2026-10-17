@@ -14,7 +14,7 @@ import { onMounted } from 'vue'
 import ConnectionList from '@/components/connection/ConnectionList.vue'
 
 onMounted(() => {
-  console.log('Connections 컴포넌트 마운트됨')
+  console.log('연결 화면이 마운트되었습니다')
 })
 </script>
 

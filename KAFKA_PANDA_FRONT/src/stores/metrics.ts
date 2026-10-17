@@ -16,7 +16,7 @@ export const useMetricsStore = defineStore('metrics', () => {
       metrics.value = await metricsService.getMetrics(connectionId)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch metrics'
-      console.error('Failed to fetch metrics:', err)
+      console.error('메트릭 조회 실패:', err)
     } finally {
       loading.value = false
     }
@@ -29,7 +29,7 @@ export const useMetricsStore = defineStore('metrics', () => {
       consumerGroups.value = await metricsService.getConsumerGroups(connectionId)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch consumer groups'
-      console.error('Failed to fetch consumer groups:', err)
+      console.error('컨슈머 그룹 조회 실패:', err)
     } finally {
       loading.value = false
     }

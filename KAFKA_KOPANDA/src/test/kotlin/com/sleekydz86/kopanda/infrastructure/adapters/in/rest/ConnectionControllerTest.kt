@@ -174,7 +174,7 @@ class ConnectionControllerTest {
         )
         val testResult = ConnectionTestResult(
             success = true,
-            message = "Connection successful",
+            message = "연결에 성공했습니다",
             latency = 50L,
             brokerInfo = BrokerInfo(3, emptyList())
         )

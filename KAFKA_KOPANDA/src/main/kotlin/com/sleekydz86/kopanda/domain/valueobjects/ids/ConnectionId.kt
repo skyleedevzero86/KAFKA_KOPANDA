@@ -6,7 +6,7 @@ import java.util.UUID
 @Embeddable
 data class ConnectionId(val value: String) {
     init {
-        require(value.isNotBlank()) { "Connection ID cannot be blank" }
+        require(value.isNotBlank()) { "연결 ID는 비어 있을 수 없습니다" }
     }
 
     companion object {

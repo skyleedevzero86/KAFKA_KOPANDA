@@ -8,7 +8,7 @@ data class OffsetRange(
     val latest: Offset
 ) {
     init {
-        require(earliest.value <= latest.value) { "Earliest offset must be less than or equal to latest offset" }
+        require(earliest.value <= latest.value) { "시작 오프셋은 마지막 오프셋보다 클 수 없습니다" }
     }
 
     fun getMessageCount(): Long = latest.value - earliest.value

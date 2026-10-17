@@ -9,7 +9,7 @@ import { onMounted } from 'vue'
 import MetricsDashboard from '@/components/metrics/MetricsDashboard.vue'
 
 onMounted(() => {
-  console.log('Metrics 컴포넌트 마운트됨')
+  console.log('메트릭 화면이 마운트되었습니다')
 })
 </script>
 

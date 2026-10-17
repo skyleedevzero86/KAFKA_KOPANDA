@@ -110,6 +110,7 @@ logging:
     org.springframework.orm.jpa: WARN
     org.springframework.transaction: WARN
     org.springframework.data.repository.config: WARN
+    org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: ERROR
 
   admin:
     request-timeout-ms: 5000

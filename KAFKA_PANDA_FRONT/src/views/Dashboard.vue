@@ -212,7 +212,7 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
-  console.log('Dashboard 컴포넌트 활성화됨')
+  console.log('대시보드 화면이 활성화되었습니다')
   await connectionStore.fetchConnections()
 })
 </script>

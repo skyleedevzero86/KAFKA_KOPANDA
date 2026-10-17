@@ -8,7 +8,7 @@ import java.time.ZoneId
 @Embeddable
 data class Timestamp(val value: Long) {
     init {
-        require(value >= 0) { "Timestamp must be non-negative" }
+        require(value >= 0) { "타임스탬프는 0 이상이어야 합니다" }
     }
 
     fun toInstant(): Instant = Instant.ofEpochMilli(value)

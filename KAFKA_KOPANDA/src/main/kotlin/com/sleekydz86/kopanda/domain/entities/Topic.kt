@@ -59,9 +59,7 @@ class Topic(
 
 
     fun isHealthy(): Boolean {
-        return partitions.isNotEmpty() && partitions.any { partition ->
-            partition.leader != null && partition.inSyncReplicas.isNotEmpty()
-        }
+        return partitions.isNotEmpty() && partitions.all { it.isHealthy() }
     }
 
     fun getUnhealthyPartitions(): List<Partition> = partitions.filter { !it.isHealthy() }

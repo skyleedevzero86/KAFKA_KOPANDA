@@ -71,7 +71,7 @@ class MessageController(
                 "EARLIEST" -> OffsetType.EARLIEST
                 "LATEST" -> OffsetType.LATEST
                 "SPECIFIC" -> OffsetType.SPECIFIC
-                else -> throw IllegalArgumentException("Invalid offset type: $offsetType")
+                else -> throw IllegalArgumentException("잘못된 오프셋 유형입니다: $offsetType")
             }
             
             val messages = kafkaManagementUseCase.getMessages(

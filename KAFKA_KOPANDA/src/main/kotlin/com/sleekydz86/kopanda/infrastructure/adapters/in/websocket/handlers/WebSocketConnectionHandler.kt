@@ -1,6 +1,5 @@
 package com.sleekydz86.kopanda.infrastructure.adapters.`in`.websocket.handlers
 
-import com.sleekydz86.kopanda.infrastructure.adapters.`in`.websocket.controllers.WebSocketController
 import org.slf4j.LoggerFactory
 import org.springframework.context.event.EventListener
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor
@@ -11,9 +10,7 @@ import org.springframework.web.socket.messaging.SessionSubscribeEvent
 import org.springframework.web.socket.messaging.SessionUnsubscribeEvent
 
 @Component
-class WebSocketConnectionHandler(
-    private val webSocketController: WebSocketController
-) {
+class WebSocketConnectionHandler {
 
     private val logger = LoggerFactory.getLogger(WebSocketConnectionHandler::class.java)
 
@@ -21,20 +18,14 @@ class WebSocketConnectionHandler(
     fun handleWebSocketConnectListener(event: SessionConnectedEvent) {
         val headerAccessor = StompHeaderAccessor.wrap(event.message)
         val sessionId = headerAccessor.sessionId
-        logger.info("WebSocket client connected - Session ID: $sessionId")
-
-        // 연결된 클라이언트에게 초기 상태 정보 전송
-        // TODO: 클라이언트별 구독 정보 관리
+        logger.info("웹소켓 클라이언트가 연결되었습니다. 세션 ID: $sessionId")
     }
 
     @EventListener
     fun handleWebSocketDisconnectListener(event: SessionDisconnectEvent) {
         val headerAccessor = StompHeaderAccessor.wrap(event.message)
         val sessionId = headerAccessor.sessionId
-        logger.info("WebSocket client disconnected - Session ID: $sessionId")
-
-        // 연결 해제 시 정리 작업
-        // TODO: 클라이언트별 구독 정보 정리
+        logger.info("웹소켓 클라이언트 연결이 끊어졌습니다. 세션 ID: $sessionId")
     }
 
     @EventListener
@@ -43,19 +34,7 @@ class WebSocketConnectionHandler(
         val sessionId = headerAccessor.sessionId
         val destination = headerAccessor.destination
 
-        logger.info("WebSocket client subscribed - Session ID: $sessionId, Destination: $destination")
-
-        // 구독 시 초기 데이터 전송
-        when {
-            destination?.startsWith("/topic/connection-status/") == true -> {
-                val connectionId = destination.substringAfterLast("/")
-                // TODO: 해당 연결의 초기 상태 전송
-            }
-            destination?.startsWith("/topic/metrics/") == true -> {
-                val connectionId = destination.substringAfterLast("/")
-                // TODO: 해당 연결의 초기 메트릭스 전송
-            }
-        }
+        logger.info("웹소켓 클라이언트가 구독했습니다. 세션 ID: $sessionId, 대상: $destination")
     }
 
     @EventListener
@@ -64,9 +43,6 @@ class WebSocketConnectionHandler(
         val sessionId = headerAccessor.sessionId
         val destination = headerAccessor.destination
 
-        logger.info("WebSocket client unsubscribed - Session ID: $sessionId, Destination: $destination")
-
-        // 구독 해제 시 정리 작업
-        // TODO: 클라이언트별 구독 정보에서 제거
+        logger.info("웹소켓 클라이언트 구독이 해제되었습니다. 세션 ID: $sessionId, 대상: $destination")
     }
 }

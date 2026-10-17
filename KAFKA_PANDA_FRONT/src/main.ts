@@ -8,16 +8,10 @@ import router from './router'
 
 const app = createApp(App)
 
-// Pinia 스토어 등록
 app.use(createPinia())
-
-// 라우터 등록
 app.use(router)
-
-// Element Plus 등록
 app.use(ElementPlus)
 
-// Element Plus 아이콘들 전역 등록
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }

@@ -15,7 +15,7 @@ export function useAlertStore() {
       alerts.value = await alertService.getActiveAlerts(connectionId)
     } catch (err: any) {
       error.value = err.message || '알림을 불러오는데 실패했습니다.'
-      console.error('Failed to fetch alerts:', err)
+      console.error('알림 조회 실패:', err)
     } finally {
       loading.value = false
     }
@@ -28,7 +28,7 @@ export function useAlertStore() {
       alerts.value = await alertService.getAlertsBySeverity(severity)
     } catch (err: any) {
       error.value = err.message || '알림을 불러오는데 실패했습니다.'
-      console.error('Failed to fetch alerts by severity:', err)
+      console.error('심각도별 알림 조회 실패:', err)
     } finally {
       loading.value = false
     }
@@ -49,7 +49,7 @@ export function useAlertStore() {
       return updatedAlert
     } catch (err: any) {
       error.value = err.message || '알림 확인 처리에 실패했습니다.'
-      console.error('Failed to acknowledge alert:', err)
+      console.error('알림 확인 처리 실패:', err)
       throw err
     }
   }
@@ -60,7 +60,7 @@ export function useAlertStore() {
       alerts.value = []
     } catch (err: any) {
       error.value = err.message || '알림 삭제에 실패했습니다.'
-      console.error('Failed to clear alerts:', err)
+      console.error('알림 삭제 실패:', err)
       throw err
     }
   }
@@ -71,7 +71,7 @@ export function useAlertStore() {
       await fetchAlerts(connectionId)
     } catch (err: any) {
       error.value = err.message || '알림 체크에 실패했습니다.'
-      console.error('Failed to check and create alerts:', err)
+      console.error('알림 점검 및 생성 실패:', err)
       throw err
     }
   }
@@ -83,7 +83,7 @@ export function useAlertStore() {
       return testAlert
     } catch (err: any) {
       error.value = err.message || '테스트 알림 생성에 실패했습니다.'
-      console.error('Failed to create test alert:', err)
+      console.error('테스트 알림 생성 실패:', err)
       throw err
     }
   }

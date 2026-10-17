@@ -30,7 +30,7 @@ class PortTest {
         // when & then
         assertThatThrownBy { Port(invalidPort) }
             .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessage("Port must be between 1 and 65535")
+            .hasMessage("포트는 1에서 65535 사이여야 합니다")
     }
 
     @Test
@@ -42,7 +42,7 @@ class PortTest {
         invalidPorts.forEach { port ->
             assertThatThrownBy { Port(port) }
                 .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessage("Port must be between 1 and 65535")
+                .hasMessage("포트는 1에서 65535 사이여야 합니다")
         }
     }
 
@@ -55,7 +55,7 @@ class PortTest {
         invalidPorts.forEach { port ->
             assertThatThrownBy { Port(port) }
                 .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessage("Port must be between 1 and 65535")
+                .hasMessage("포트는 1에서 65535 사이여야 합니다")
     }
     }
 

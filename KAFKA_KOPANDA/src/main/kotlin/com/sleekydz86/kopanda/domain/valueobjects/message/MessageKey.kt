@@ -5,7 +5,7 @@ import jakarta.persistence.Embeddable
 @Embeddable
 data class MessageKey(val value: String) {
     init {
-        require(value.isNotBlank()) { "Message key cannot be blank" }
+        require(value.isNotBlank()) { "메시지 키는 비어 있을 수 없습니다" }
     }
 
     fun isNull(): Boolean = false

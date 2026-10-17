@@ -719,7 +719,7 @@ class MonitoringController(
         val success = kafkaManagementUseCase.setOffset(connectionId, topicName, partitionNumber, offset)
         return ResponseEntity.ok(mapOf(
             "success" to success,
-            "message" to if (success) "Offset set successfully" else "Failed to set offset"
+            "message" to if (success) "오프셋을 설정했습니다" else "오프셋 설정에 실패했습니다"
         ))
     }
 
