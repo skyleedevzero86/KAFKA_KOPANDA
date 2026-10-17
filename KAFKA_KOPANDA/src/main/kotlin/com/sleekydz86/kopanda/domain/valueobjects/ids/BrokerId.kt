@@ -5,7 +5,7 @@ import jakarta.persistence.Embeddable
 @Embeddable
 data class BrokerId(val value: Int) {
     init {
-        require(value >= 0) { "Broker ID must be non-negative" }
+        require(value >= 0) { "브로커 ID는 0 이상이어야 합니다" }
     }
 
     fun isEqualTo(other: BrokerId): Boolean = value == other.value

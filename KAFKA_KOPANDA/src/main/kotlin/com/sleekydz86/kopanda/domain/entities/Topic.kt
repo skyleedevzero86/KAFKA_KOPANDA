@@ -56,7 +56,11 @@ class Topic(
 
     fun getTotalMessageCount(): Long = partitions.sumOf { it.messageCount }
 
-    fun isHealthy(): Boolean = partitions.all { it.isHealthy() }
+
+
+    fun isHealthy(): Boolean {
+        return partitions.isNotEmpty() && partitions.all { it.isHealthy() }
+    }
 
     fun getUnhealthyPartitions(): List<Partition> = partitions.filter { !it.isHealthy() }
 
@@ -76,7 +80,8 @@ class Topic(
 
             val topic = Topic(
                 name = topicName,
-                config = topicConfig
+                config = topicConfig,
+                isInternal = topicName.isInternal
             )
 
             topic.addDomainEvent(TopicCreatedEvent(topic))

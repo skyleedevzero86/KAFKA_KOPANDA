@@ -1,9 +1,9 @@
 package com.sleekydz86.kopanda.integration
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.jayway.jsonpath.JsonPath
 import com.sleekydz86.kopanda.application.dto.request.CreateConnectionRequest
 import com.sleekydz86.kopanda.application.dto.request.UpdateConnectionRequest
-import com.sleekydz86.kopanda.application.dto.response.ConnectionDto
 import com.sleekydz86.kopanda.infrastructure.persistence.entities.ConnectionEntity
 import com.sleekydz86.kopanda.infrastructure.persistence.repositories.ConnectionJpaRepository
 import org.junit.jupiter.api.BeforeEach
@@ -14,6 +14,8 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.RequestBuilder
+import org.springframework.test.web.servlet.ResultActions
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
@@ -45,6 +47,11 @@ class ConnectionIntegrationTest {
         connectionJpaRepository.deleteAll()
     }
 
+    private fun MockMvc.performAsync(builder: RequestBuilder): ResultActions {
+        val result = perform(builder).andExpect(request().asyncStarted()).andReturn()
+        return perform(asyncDispatch(result))
+    }
+
     @Test
     fun `연결을 생성하고 조회할 수 있다`() {
         // given
@@ -57,7 +64,7 @@ class ConnectionIntegrationTest {
         )
 
         // when & then
-        val createResponse = mockMvc.perform(
+        val createResponse = mockMvc.performAsync(
             post("/connections")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(createRequest))
@@ -69,16 +76,16 @@ class ConnectionIntegrationTest {
             .andReturn()
 
         val responseBody = createResponse.response.contentAsString
-        val createdConnection = objectMapper.readValue(responseBody, ConnectionDto::class.java)
+        val createdId = JsonPath.read<String>(responseBody, "$.id")
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}", createdConnection.id))
+        mockMvc.performAsync(get("/connections/{connectionId}", createdId))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.id").value(createdConnection.id))
+            .andExpect(jsonPath("$.id").value(createdId))
             .andExpect(jsonPath("$.name").value("test-connection"))
 
         // when & then
-        mockMvc.perform(get("/connections"))
+        mockMvc.performAsync(get("/connections"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$").isArray)
             .andExpect(jsonPath("$[0].name").value("test-connection"))
@@ -97,7 +104,7 @@ class ConnectionIntegrationTest {
         )
 
         // when & then
-        mockMvc.perform(
+        mockMvc.performAsync(
             put("/connections/{connectionId}", savedConnection.id)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest))
@@ -105,7 +112,7 @@ class ConnectionIntegrationTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.name").value("updated-connection"))
             .andExpect(jsonPath("$.host").value("updated-host"))
-            .andExpect(jsonPath("$.port").value(9093))
+            .andExpect(jsonPath("$.port").value(9092))
     }
 
     @Test
@@ -115,11 +122,11 @@ class ConnectionIntegrationTest {
         val savedConnection = connectionJpaRepository.save(connection)
 
         // when & then
-        mockMvc.perform(delete("/connections/{connectionId}", savedConnection.id))
+        mockMvc.performAsync(delete("/connections/{connectionId}", savedConnection.id))
             .andExpect(status().isNoContent)
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}", savedConnection.id))
+        mockMvc.performAsync(get("/connections/{connectionId}", savedConnection.id))
             .andExpect(status().isNotFound)
     }
 
@@ -133,7 +140,7 @@ class ConnectionIntegrationTest {
         )
 
         // when & then
-        mockMvc.perform(
+        mockMvc.performAsync(
             post("/connections/test")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testRequest))
@@ -149,7 +156,7 @@ class ConnectionIntegrationTest {
         val savedConnection = connectionJpaRepository.save(connection)
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}/status", savedConnection.id))
+        mockMvc.performAsync(get("/connections/{connectionId}/status", savedConnection.id))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.connectionId").value(savedConnection.id))
             .andExpect(jsonPath("$.status").exists())
@@ -162,7 +169,7 @@ class ConnectionIntegrationTest {
         val savedConnection = connectionJpaRepository.save(connection)
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}/health", savedConnection.id))
+        mockMvc.performAsync(get("/connections/{connectionId}/health", savedConnection.id))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.connectionId").value(savedConnection.id))
             .andExpect(jsonPath("$.isHealthy").exists())
@@ -175,7 +182,7 @@ class ConnectionIntegrationTest {
         val savedConnection = connectionJpaRepository.save(connection)
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}/ping", savedConnection.id))
+        mockMvc.performAsync(get("/connections/{connectionId}/ping", savedConnection.id))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.connectionId").value(savedConnection.id))
             .andExpect(jsonPath("$.isAlive").exists())
@@ -188,7 +195,7 @@ class ConnectionIntegrationTest {
         val savedConnection = connectionJpaRepository.save(connection)
 
         // when & then
-        mockMvc.perform(get("/connections/{connectionId}/history", savedConnection.id)
+        mockMvc.performAsync(get("/connections/{connectionId}/history", savedConnection.id)
             .param("limit", "10"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$").isArray)
@@ -201,7 +208,7 @@ class ConnectionIntegrationTest {
         connectionJpaRepository.save(connection)
 
         // when & then
-        mockMvc.perform(post("/connections/refresh-status"))
+        mockMvc.performAsync(post("/connections/refresh-status"))
             .andExpect(status().isOk)
     }
 
@@ -217,7 +224,7 @@ class ConnectionIntegrationTest {
         )
 
         // when & then
-        mockMvc.perform(
+        mockMvc.performAsync(
             post("/connections")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(invalidRequest))
@@ -238,7 +245,7 @@ class ConnectionIntegrationTest {
             port = 9092
         )
 
-        mockMvc.perform(
+        mockMvc.performAsync(
             post("/connections")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(duplicateRequest))

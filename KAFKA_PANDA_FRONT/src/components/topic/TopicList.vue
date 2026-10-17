@@ -128,7 +128,7 @@ const { connections, currentConnection } = storeToRefs(connectionStore)
 
 const activeConnection = computed(() => {
   const connection = currentConnection?.value || connections.value?.[0] || null
-  console.log('Active connection:', connection)
+  console.log('활성 연결:', connection)
   return connection
 })
 
@@ -238,7 +238,7 @@ const confirmDeleteTopic = async () => {
 }
 
 onMounted(async () => {
-  console.log('TopicList 컴포넌트 마운트됨')
+  console.log('토픽 목록이 마운트되었습니다')
   await connectionStore.fetchConnections()
   const connection = activeConnection.value
   if (connection) {

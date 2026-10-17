@@ -141,7 +141,7 @@ const formRef = ref<FormInstance>()
 const isEdit = computed(() => !!props.connection)
 
 const form = ref<CreateConnectionRequest>({
-  name: '',
+  name: 'Local Kafka',
   host: 'localhost',
   port: 9092, 
   sslEnabled: false,
@@ -150,25 +150,32 @@ const form = ref<CreateConnectionRequest>({
   password: undefined
 })
 
-const rules: FormRules = {
-  name: [
-    { required: true, message: '연결 이름을 입력하세요', trigger: 'blur' },
-    { min: 1, max: 50, message: '연결 이름은 1-50자 사이여야 합니다', trigger: 'blur' }
-  ],
-  host: [
-    { required: true, message: '호스트를 입력하세요', trigger: 'blur' }
-  ],
-  port: [
-    { required: true, message: '포트를 입력하세요', trigger: 'blur' },
-    { type: 'number', min: 1, max: 65535, message: '포트는 1-65535 사이여야 합니다', trigger: 'blur' }
-  ],
-  username: [
-    { required: true, message: '사용자명을 입력하세요', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '비밀번호를 입력하세요', trigger: 'blur' }
-  ]
-}
+const rules = computed<FormRules>(() => {
+  const base: FormRules = {
+    name: [
+      { required: true, message: '연결 이름을 입력하세요', trigger: 'blur' },
+      { min: 1, max: 50, message: '연결 이름은 1-50자 사이여야 합니다', trigger: 'blur' }
+    ],
+    host: [
+      { required: true, message: '호스트를 입력하세요', trigger: 'blur' }
+    ],
+    port: [
+      { required: true, message: '포트를 입력하세요', trigger: 'blur' },
+      { type: 'number', min: 1, max: 65535, message: '포트는 1-65535 사이여야 합니다', trigger: 'blur' }
+    ]
+  }
+
+  if (form.value.saslEnabled) {
+    base.username = [
+      { required: true, message: '사용자명을 입력하세요', trigger: 'blur' }
+    ]
+    base.password = [
+      { required: true, message: '비밀번호를 입력하세요', trigger: 'blur' }
+    ]
+  }
+
+  return base
+})
 
 const getSecurityInfo = () => {
   if (form.value.sslEnabled && form.value.saslEnabled) {
@@ -184,7 +191,7 @@ const getSecurityInfo = () => {
 
 const resetForm = () => {
   form.value = {
-    name: '',
+    name: 'Local Kafka',
     host: 'localhost',
     port: 9092,
     sslEnabled: false,
@@ -226,14 +233,19 @@ const handleSubmit = async () => {
     await formRef.value.validate()
     loading.value = true
 
+    const payload = {
+      ...form.value,
+      username: form.value.saslEnabled ? form.value.username : undefined,
+      password: form.value.saslEnabled ? form.value.password : undefined
+    }
     const submitData = isEdit.value
-      ? { ...form.value, id: props.connection!.id } as UpdateConnectionRequest
-      : form.value as CreateConnectionRequest
+      ? { ...payload, id: props.connection!.id } as UpdateConnectionRequest
+      : payload as CreateConnectionRequest
 
     emit('submit', submitData)
     visible.value = false
-  } catch (error) {
-    console.error('폼 검증 실패:', error)
+  } catch {
+    return
   } finally {
     loading.value = false
   }

@@ -35,7 +35,7 @@ class HostTest {
         // when & then
         assertThatThrownBy { Host(emptyHost) }
             .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessage("Host cannot be blank")
+            .hasMessage("호스트는 비어 있을 수 없습니다")
     }
 
     @Test
@@ -46,7 +46,7 @@ class HostTest {
         // when & then
         assertThatThrownBy { Host(blankHost) }
             .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessage("Host cannot be blank")
+            .hasMessage("호스트는 비어 있을 수 없습니다")
     }
 
     @ParameterizedTest
@@ -55,7 +55,7 @@ class HostTest {
         // when & then
         assertThatThrownBy { Host(invalidHost) }
             .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Host can only contain alphanumeric characters, dots, and hyphens")
+            .hasMessageContaining("호스트는 영문, 숫자, 점, 하이픈만 사용할 수 있습니다")
     }
 
     @Test

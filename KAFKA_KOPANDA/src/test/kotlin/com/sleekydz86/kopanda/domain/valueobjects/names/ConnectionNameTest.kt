@@ -36,7 +36,7 @@ class ConnectionNameTest {
         // when & then
         assertThatThrownBy { ConnectionName(emptyName) }
             .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessage("Connection name cannot be blank")
+            .hasMessage("연결 이름은 비어 있을 수 없습니다")
     }
 
     @Test
@@ -47,7 +47,7 @@ class ConnectionNameTest {
         // when & then
         assertThatThrownBy { ConnectionName(blankName) }
             .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessage("Connection name cannot be blank")
+            .hasMessage("연결 이름은 비어 있을 수 없습니다")
     }
 
     @Test
@@ -58,7 +58,7 @@ class ConnectionNameTest {
         // when & then
         assertThatThrownBy { ConnectionName(longName) }
             .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessage("Connection name cannot exceed 100 characters")
+            .hasMessage("연결 이름은 100자를 넘을 수 없습니다")
     }
 
     @ParameterizedTest
@@ -67,7 +67,7 @@ class ConnectionNameTest {
         // when & then
         assertThatThrownBy { ConnectionName(invalidName) }
             .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("Connection name can only contain alphanumeric characters, Korean characters, spaces, underscores, and hyphens")
+            .hasMessageContaining("연결 이름은 영문, 숫자, 한글, 공백, 밑줄, 하이픈만 사용할 수 있습니다")
     }
 
     @Test

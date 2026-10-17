@@ -31,7 +31,7 @@ class WebSocketTestController(
 
         return ResponseEntity.ok(mapOf(
             "success" to true,
-            "message" to "Connection status broadcasted",
+            "message" to "연결 상태를 전송했습니다",
             "connectionId" to connectionId,
             "timestamp" to LocalDateTime.now()
         ))
@@ -56,7 +56,7 @@ class WebSocketTestController(
 
         return ResponseEntity.ok(mapOf(
             "success" to true,
-            "message" to "Metrics broadcasted",
+            "message" to "메트릭을 전송했습니다",
             "connectionId" to connectionId,
             "timestamp" to LocalDateTime.now()
         ))
@@ -73,7 +73,7 @@ class WebSocketTestController(
 
         return ResponseEntity.ok(mapOf(
             "success" to true,
-            "message" to "Global message broadcasted",
+            "message" to "전체 메시지를 전송했습니다",
             "type" to type,
             "timestamp" to LocalDateTime.now()
         ))
@@ -87,7 +87,7 @@ class WebSocketTestController(
 
         return ResponseEntity.ok(mapOf(
             "success" to true,
-            "message" to "Connection change simulated",
+            "message" to "연결 변경을 재현했습니다",
             "connectionId" to connectionId,
             "timestamp" to LocalDateTime.now()
         ))
@@ -97,7 +97,7 @@ class WebSocketTestController(
     fun getWebSocketStatus(): ResponseEntity<Map<String, Any>> {
         return ResponseEntity.ok(mapOf(
             "status" to "active",
-            "message" to "WebSocket controller is running",
+            "message" to "웹소켓 컨트롤러가 동작 중입니다",
             "endpoints" to listOf(
                 "/topic/connection-status/{connectionId}",
                 "/topic/metrics/{connectionId}",

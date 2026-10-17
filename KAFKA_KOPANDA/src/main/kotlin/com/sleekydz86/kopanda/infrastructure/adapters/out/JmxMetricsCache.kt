@@ -6,6 +6,7 @@ import org.springframework.cache.annotation.Cacheable
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
+import java.time.Duration
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
 
@@ -49,7 +50,7 @@ class JmxMetricsCache(
         val cached = metricsCache[connectionId]
 
         if (cached != null &&
-            java.time.Duration.between(cached.timestamp, LocalDateTime.now()).seconds < 30) {
+            Duration.between(cached.timestamp, LocalDateTime.now()).seconds < 30) {
             return cached
         }
 

@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/monitoring")
@@ -718,7 +719,7 @@ class MonitoringController(
         val success = kafkaManagementUseCase.setOffset(connectionId, topicName, partitionNumber, offset)
         return ResponseEntity.ok(mapOf(
             "success" to success,
-            "message" to if (success) "Offset set successfully" else "Failed to set offset"
+            "message" to if (success) "오프셋을 설정했습니다" else "오프셋 설정에 실패했습니다"
         ))
     }
 
@@ -1171,7 +1172,7 @@ class MonitoringController(
             "topicsHealth" to topicsHealth,
             "consumerGroupMetrics" to consumerGroupMetrics,
             "performanceMetrics" to performanceMetrics,
-            "timestamp" to java.time.LocalDateTime.now()
+            "timestamp" to LocalDateTime.now()
         )
 
         return ResponseEntity.ok(dashboardData)

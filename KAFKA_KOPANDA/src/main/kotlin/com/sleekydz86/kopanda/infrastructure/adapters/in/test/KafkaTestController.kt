@@ -44,7 +44,7 @@ class KafkaTestController(
         } catch (e: Exception) {
             ResponseEntity.ok(mapOf(
                 "success" to false,
-                "message" to "Connection failed: ${e.message}",
+                "message" to "연결에 실패했습니다: ${e.message}",
                 "error" to e.javaClass.simpleName
             ))
         }
@@ -71,7 +71,7 @@ class KafkaTestController(
         } catch (e: Exception) {
             ResponseEntity.ok(mapOf(
                 "success" to false,
-                "message" to "Connection failed: ${e.message}",
+                "message" to "연결에 실패했습니다: ${e.message}",
                 "error" to e.javaClass.simpleName
             ))
         }

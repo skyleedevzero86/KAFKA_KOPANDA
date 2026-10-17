@@ -9,6 +9,8 @@ spring:
       host: localhost
       port: 9379
       password: 123456
+      repositories:
+        enabled: false
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
@@ -43,16 +45,16 @@ spring:
         trace: false
 
   jpa:
+    open-in-view: true
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
         implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect
         jdbc:
           time_zone: Asia/Seoul
           batch_size: 20
@@ -60,10 +62,6 @@ spring:
         order_updates: true
         connection:
           provider_disables_autocommit: true
-        temp:
-          use_jdbc_metadata_defaults: false
-        hbm2ddl:
-          auto: update
         packages_to_scan: com.sleekydz86.kopanda.infrastructure.persistence.entities
     defer-datasource-initialization: false
 
@@ -106,12 +104,13 @@ springdoc:
 
 logging:
   level:
-    com.sleekydz86.kopanda: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    org.springframework.orm.jpa: DEBUG
-    org.springframework.transaction: DEBUG
-    org.hibernate.tool.schema: DEBUG
+    com.sleekydz86.kopanda: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.tool.schema: WARN
+    org.springframework.orm.jpa: WARN
+    org.springframework.transaction: WARN
+    org.springframework.data.repository.config: WARN
+    org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: ERROR
 
   admin:
     request-timeout-ms: 5000

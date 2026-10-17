@@ -3,6 +3,7 @@ package com.sleekydz86.kopanda.domain.entities
 import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 import com.sleekydz86.kopanda.shared.domain.AggregateRoot
 import java.time.LocalDateTime
+import java.util.UUID
 
 data class ConnectionHistory(
     val id: String,
@@ -21,7 +22,7 @@ data class ConnectionHistory(
             details: Map<String, Any> = emptyMap()
         ): ConnectionHistory {
             return ConnectionHistory(
-                id = java.util.UUID.randomUUID().toString(),
+                id = UUID.randomUUID().toString(),
                 connectionId = connectionId,
                 eventType = eventType,
                 description = description,

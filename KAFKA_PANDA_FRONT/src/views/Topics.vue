@@ -9,7 +9,7 @@ import { onMounted } from 'vue'
 import TopicList from '@/components/topic/TopicList.vue'
 
 onMounted(() => {
-  console.log('Topics 컴포넌트 마운트됨')
+  console.log('토픽 화면이 마운트되었습니다')
 })
 </script>
 

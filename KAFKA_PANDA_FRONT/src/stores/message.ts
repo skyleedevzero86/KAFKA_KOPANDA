@@ -31,7 +31,7 @@ export const useMessageStore = defineStore('message', () => {
       return response
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch messages'
-      console.error('Failed to fetch messages:', err)
+      console.error('메시지 조회 실패:', err)
       throw err
     } finally {
       loading.value = false
@@ -49,7 +49,7 @@ export const useMessageStore = defineStore('message', () => {
       await messageService.sendMessage(connectionId, topicName, request)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to send message'
-      console.error('Failed to send message:', err)
+      console.error('메시지 전송 실패:', err)
       throw err
     } finally {
       loading.value = false
@@ -68,7 +68,7 @@ export const useMessageStore = defineStore('message', () => {
       return results
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to search messages'
-      console.error('Failed to search messages:', err)
+      console.error('메시지 검색 실패:', err)
       throw err
     } finally {
       loading.value = false

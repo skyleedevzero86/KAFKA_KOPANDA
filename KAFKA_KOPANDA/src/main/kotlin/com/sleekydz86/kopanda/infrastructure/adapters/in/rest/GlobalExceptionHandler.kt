@@ -8,57 +8,73 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.context.request.WebRequest
+import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @ControllerAdvice
 class GlobalExceptionHandler {
-    
+
     private val logger = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
-    
+
     @ExceptionHandler(DomainException::class)
     fun handleDomainException(ex: DomainException, request: WebRequest): ResponseEntity<ErrorResponse> {
-        logger.warn("Domain Exception: ${ex.message}")
-        
+        logger.warn("도메인 오류: ${ex.message}")
+
         val errorResponse = ErrorResponse(
             timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
             status = HttpStatus.BAD_REQUEST.value(),
-            error = "Bad Request",
-            message = ex.message ?: "Domain validation failed",
+            error = "잘못된 요청",
+            message = ex.message ?: "도메인 검증에 실패했습니다.",
             path = request.getDescription(false).removePrefix("uri=")
         )
-        
+
         return ResponseEntity.badRequest().body(errorResponse)
     }
-    
+
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleIllegalArgumentException(ex: IllegalArgumentException, request: WebRequest): ResponseEntity<ErrorResponse> {
-        logger.warn("Validation Exception: ${ex.message}")
-        
+        logger.warn("입력값 검증 오류: ${ex.message}")
+
         val errorResponse = ErrorResponse(
             timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
             status = HttpStatus.BAD_REQUEST.value(),
-            error = "Bad Request",
-            message = ex.message ?: "Validation failed",
+            error = "잘못된 요청",
+            message = ex.message ?: "입력값 검증에 실패했습니다.",
             path = request.getDescription(false).removePrefix("uri=")
         )
-        
+
         return ResponseEntity.badRequest().body(errorResponse)
     }
-    
+
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun handleNoResourceFoundException(ex: NoResourceFoundException, request: WebRequest): ResponseEntity<ErrorResponse> {
+        val path = request.getDescription(false).removePrefix("uri=")
+        logger.debug("요청한 주소를 찾을 수 없습니다: $path")
+
+        val errorResponse = ErrorResponse(
+            timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+            status = HttpStatus.NOT_FOUND.value(),
+            error = "찾을 수 없음",
+            message = "요청한 주소를 찾을 수 없습니다.",
+            path = path
+        )
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse)
+    }
+
     @ExceptionHandler(Exception::class)
     fun handleGenericException(ex: Exception, request: WebRequest): ResponseEntity<ErrorResponse> {
-        logger.error("Unexpected error occurred", ex)
-        
+        logger.error("예상하지 못한 오류가 발생했습니다: ${ex.message}", ex)
+
         val errorResponse = ErrorResponse(
             timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
             status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            error = "Internal Server Error",
-            message = "An unexpected error occurred: ${ex.message}",
+            error = "내부 서버 오류",
+            message = "예상하지 못한 오류가 발생했습니다: ${ex.message}",
             path = request.getDescription(false).removePrefix("uri=")
         )
-        
+
         return ResponseEntity.internalServerError().body(errorResponse)
     }
 }
- 

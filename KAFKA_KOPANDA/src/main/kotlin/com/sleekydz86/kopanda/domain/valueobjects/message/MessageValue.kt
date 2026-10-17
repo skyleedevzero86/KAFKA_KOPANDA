@@ -9,7 +9,7 @@ data class MessageValue(
     val value: String
 ) {
     init {
-        require(value.isNotBlank()) { "Message value cannot be blank" }
+        require(value.isNotBlank()) { "메시지 값은 비어 있을 수 없습니다" }
     }
 
     fun isNull(): Boolean = false

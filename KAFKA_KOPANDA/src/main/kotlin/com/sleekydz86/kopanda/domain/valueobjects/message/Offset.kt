@@ -5,7 +5,7 @@ import jakarta.persistence.Embeddable
 @Embeddable
 data class Offset(val value: Long) {
     init {
-        require(value >= 0) { "Offset must be non-negative" }
+        require(value >= 0) { "오프셋은 0 이상이어야 합니다" }
     }
 
     fun increment(): Offset = Offset(value + 1)

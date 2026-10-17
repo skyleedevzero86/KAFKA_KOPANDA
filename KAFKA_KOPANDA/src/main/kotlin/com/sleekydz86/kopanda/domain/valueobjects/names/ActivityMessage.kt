@@ -5,8 +5,8 @@ import jakarta.persistence.Embeddable
 @Embeddable
 data class ActivityMessage(val value: String) {
     init {
-        require(value.isNotBlank()) { "Activity message cannot be blank" }
-        require(value.length <= 500) { "Activity message cannot exceed 500 characters" }
+        require(value.isNotBlank()) { "활동 메시지는 비어 있을 수 없습니다" }
+        require(value.length <= 500) { "활동 메시지는 500자를 넘을 수 없습니다" }
     }
 
     override fun toString(): String = value

@@ -6,7 +6,7 @@ import java.util.UUID
 @Embeddable
 data class ActivityId(val value: String) {
     init {
-        require(value.isNotBlank()) { "Activity ID cannot be blank" }
+        require(value.isNotBlank()) { "활동 ID는 비어 있을 수 없습니다" }
     }
 
     companion object {

@@ -6,7 +6,6 @@
     :before-close="handleClose"
   >
     <div v-if="topic" class="topic-detail">
-      <!-- 토픽 기본 정보 -->
       <el-card class="info-card">
         <template #header>
           <span>토픽 상세 정보</span>
@@ -46,7 +45,6 @@
         </el-row>
       </el-card>
 
-      <!-- 파티션 상세 정보 -->
       <el-card class="partition-card">
         <template #header>
           <span>파티션 상세 정보</span>
@@ -101,7 +99,6 @@
         </div>
       </el-card>
 
-      <!-- 토픽 설정 -->
       <el-card class="config-card">
         <template #header>
           <span>토픽 설정</span>

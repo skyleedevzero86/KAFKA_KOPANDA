@@ -138,6 +138,7 @@ class ConnectionTest {
         val connection = Connection.create("test", "localhost", 9092)
 
         // when
+        Thread.sleep(5)
         connection.delete()
 
         // then

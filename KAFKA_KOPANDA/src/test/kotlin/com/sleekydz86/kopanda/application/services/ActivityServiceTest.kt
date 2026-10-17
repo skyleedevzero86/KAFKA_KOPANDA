@@ -1,6 +1,7 @@
 package com.sleekydz86.kopanda.application.services
 
 import com.sleekydz86.kopanda.application.dto.enums.ActivityType
+import com.sleekydz86.kopanda.domain.valueobjects.common.ActivityType as DomainActivityType
 import com.sleekydz86.kopanda.application.dto.response.ActivityDto
 import com.sleekydz86.kopanda.application.ports.out.ActivityRepository
 import com.sleekydz86.kopanda.domain.entities.Activity
@@ -145,7 +146,7 @@ class ActivityServiceTest {
         assertThat(result).hasSize(1)
         val activityDto = result[0]
         assertThat(activityDto.id).isEqualTo(activity.getId().value)
-        assertThat(activityDto.type).isEqualTo(activity.type)
+        assertThat(activityDto.type.name).isEqualTo(activity.type.value)
         assertThat(activityDto.title).isEqualTo(activity.title.value)
         assertThat(activityDto.message).isEqualTo(activity.message.value)
         assertThat(activityDto.connectionId).isEqualTo(activity.connectionId)
@@ -171,7 +172,7 @@ class ActivityServiceTest {
         val result = activityService.getRecentActivities(8)
 
         // then
-        val expectedIcons = listOf("🔗", "📝", "⚠️", "❌", "🔄", "🗑️", "📤", "️")
+        val expectedIcons = listOf("🔗", "📝", "⚠️", "❌", "🔄", "🗑️", "📤", "🗑️")
         result.forEachIndexed { index, activityDto ->
             assertThat(activityDto.icon).isEqualTo(expectedIcons[index])
         }
@@ -183,7 +184,7 @@ class ActivityServiceTest {
         connectionId: String? = null
     ): Activity {
         return Activity(
-            type = type,
+            type = DomainActivityType(type.name),
             title = ActivityTitle(title),
             message = ActivityMessage("테스트 메시지"),
             connectionId = connectionId,

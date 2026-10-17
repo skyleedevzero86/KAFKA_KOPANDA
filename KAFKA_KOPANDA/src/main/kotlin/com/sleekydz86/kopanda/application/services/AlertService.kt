@@ -7,6 +7,7 @@ import com.sleekydz86.kopanda.application.ports.out.AlertRepository
 import com.sleekydz86.kopanda.domain.entities.Alert
 import com.sleekydz86.kopanda.domain.valueobjects.common.IssueSeverity as DomainIssueSeverity
 import com.sleekydz86.kopanda.domain.valueobjects.common.IssueType as DomainIssueType
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
@@ -16,6 +17,8 @@ class AlertService(
     private val alertRepository: AlertRepository,
     private val kafkaManagementUseCase: KafkaManagementUseCase
 ) : AlertManagementUseCase {
+
+    private val logger = LoggerFactory.getLogger(AlertService::class.java)
 
     override fun getActiveAlerts(connectionId: String?): List<AlertDto> {
         return alertRepository.findActiveAlerts(connectionId).map { it.toDto() }
@@ -28,7 +31,7 @@ class AlertService(
 
     override fun acknowledgeAlert(alertId: String, acknowledgedBy: String): AlertDto {
         val alert = alertRepository.findById(alertId)
-            ?: throw IllegalArgumentException("Alert not found with id: $alertId")
+            ?: throw IllegalArgumentException("알림을 찾을 수 없습니다: $alertId")
 
         alert.acknowledge(acknowledgedBy)
         val savedAlert = alertRepository.save(alert)
@@ -47,7 +50,7 @@ class AlertService(
 
     override fun getAlertById(id: String): AlertDto {
         val alert = alertRepository.findById(id)
-            ?: throw IllegalArgumentException("Alert not found with id: $id")
+            ?: throw IllegalArgumentException("알림을 찾을 수 없습니다: $id")
         return alert.toDto()
     }
 
@@ -167,10 +170,9 @@ class AlertService(
             )
 
             val savedAlert = alertRepository.save(alert)
-            println("Alert created successfully: ${savedAlert.id} - ${savedAlert.title}")
+            logger.info("알림이 생성되었습니다: ${savedAlert.id} - ${savedAlert.title}")
         } catch (e: Exception) {
-            println("Failed to create alert: ${e.message}")
-            e.printStackTrace()
+            logger.warn("알림 생성에 실패했습니다: ${e.message}", e)
         }
     }
 }

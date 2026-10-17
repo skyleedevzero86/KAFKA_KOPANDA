@@ -6,7 +6,7 @@ export class MetricsService {
     try {
       return await apiService.get<KafkaMetricsDto>(`/connections/${connectionId}/metrics`) 
     } catch (error) {
-      console.error('Failed to fetch metrics:', error)
+      console.error('메트릭 조회 실패:', error)
       throw error
     }
   }
@@ -15,7 +15,7 @@ export class MetricsService {
     try {
       return await apiService.get<ConsumerGroupDto[]>(`/connections/${connectionId}/consumer-groups`) 
     } catch (error) {
-      console.error('Failed to fetch consumer groups:', error)
+      console.error('컨슈머 그룹 조회 실패:', error)
       throw error
     }
   }
@@ -27,7 +27,7 @@ export class MetricsService {
       )
       return response
     } catch (error) {
-      console.error('Failed to create test consumer group:', error)
+      console.error('테스트 컨슈머 그룹 생성 실패:', error)
       throw error
     }
   }

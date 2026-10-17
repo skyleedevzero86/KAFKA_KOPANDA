@@ -51,6 +51,8 @@ import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
 import com.sleekydz86.kopanda.shared.domain.DomainException
+import org.apache.kafka.clients.admin.AdminClient
+import org.apache.kafka.clients.admin.AdminClientConfig
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -87,7 +89,6 @@ class KafkaApplicationService(
 
             val existingConnection = connectionRepository.findByName(request.name)
             if (existingConnection != null) {
-                logger.warn("중복된 연결 이름: ${request.name}")
                 throw DomainException("이미 존재하는 연결 이름입니다: ${request.name}")
             }
 
@@ -122,6 +123,9 @@ class KafkaApplicationService(
             connectionHistoryRepository.save(history)
 
             return savedConnection.toConnectionDto()
+        } catch (e: DomainException) {
+            logger.warn("연결 생성 실패: ${request.name} - ${e.message}")
+            throw e
         } catch (e: Exception) {
             logger.error("연결 생성 실패: ${request.name}", e)
             throw e
@@ -199,23 +203,23 @@ class KafkaApplicationService(
 
                 ConnectionTestResult(
                     success = true,
-                    message = "Connection successful",
+                    message = "연결에 성공했습니다",
                     latency = latency,
                     brokerInfo = BrokerInfo(
                         count = clusterDescription.size,
-                        versions = listOf("3.9.0")
+                        versions = emptyList()
                     )
                 )
             } else {
                 ConnectionTestResult(
                     success = false,
-                    message = "Connection failed"
+                    message = "연결에 실패했습니다"
                 )
             }
         } catch (e: Exception) {
             ConnectionTestResult(
                 success = false,
-                message = "Connection failed: ${e.message}"
+                message = "연결에 실패했습니다: ${e.message}"
             )
         }
     }
@@ -302,7 +306,7 @@ class KafkaApplicationService(
         val startTime = LocalDateTime.now()
         val connections = connectionRepository.findAll()
 
-        logger.info("Starting connection status refresh at $startTime for ${connections.size} connections")
+        logger.info("연결 상태 새로고침 시작: $startTime, 대상 ${connections.size}개")
 
         var successCount = 0
         var failureCount = 0
@@ -312,19 +316,19 @@ class KafkaApplicationService(
             val connectionName = connection.name.value
 
             try {
-                logger.debug("Testing connection: $connectionName ($connectionId)")
+                logger.debug("연결 확인: $connectionName ($connectionId)")
 
                 val isConnected = kafkaRepository.testConnection(connection)
                 if (isConnected) {
                     connection.markAsConnected()
                     connectionRepository.save(connection)
                     successCount++
-                    logger.debug("✓ Connection '$connectionName' ($connectionId) is healthy and status updated")
+                    logger.debug("연결 '$connectionName' ($connectionId)이 정상이며 상태가 갱신되었습니다")
                 } else {
                     connection.markAsDisconnected()
                     connectionRepository.save(connection)
                     failureCount++
-                    logger.warn("✗ Connection '$connectionName' ($connectionId) is not responding")
+                    logger.warn("연결 '$connectionName' ($connectionId)이 응답하지 않습니다")
                 }
 
             } catch (e: Exception) {
@@ -332,20 +336,20 @@ class KafkaApplicationService(
                 connectionRepository.save(connection)
                 failureCount++
                 logger.error(
-                    "✗ Failed to test connection '$connectionName' ($connectionId): ${e.message}",
+                    "연결 '$connectionName' ($connectionId) 확인 실패: ${e.message}",
                     e
                 )
             }
         }
         val endTime = LocalDateTime.now()
-        val duration = java.time.Duration.between(startTime, endTime)
+        val duration = Duration.between(startTime, endTime)
 
         logger.info(
-            "Connection status refresh completed at $endTime " +
-                    "(duration: ${duration.toMillis()}ms, " +
-                    "successful: $successCount, " +
-                    "failed: $failureCount, " +
-                    "total: ${connections.size})"
+            "연결 상태 새로고침 완료: $endTime " +
+                    "(소요: ${duration.toMillis()}ms, " +
+                    "성공: $successCount, " +
+                    "실패: $failureCount, " +
+                    "전체: ${connections.size})"
         )
     }
 
@@ -358,7 +362,7 @@ class KafkaApplicationService(
     override suspend fun getTopicDetails(connectionId: String, topicName: String): TopicDetailDto {
         val connection = getConnectionOrThrow(connectionId)
         val topic = kafkaRepository.getTopicDetails(connection, TopicName(topicName))
-            ?: throw DomainException("Topic '$topicName' not found")
+            ?: throw DomainException("토픽을 찾을 수 없습니다: $topicName")
         return topic.toTopicDetailDto()
     }
 
@@ -404,10 +408,10 @@ class KafkaApplicationService(
     ): PaginatedResponse<MessageDto> {
         val connection = getConnectionOrThrow(connectionId)
         val topic = kafkaRepository.getTopicDetails(connection, TopicName(topicName))
-            ?: throw DomainException("Topic '$topicName' not found")
+            ?: throw DomainException("토픽을 찾을 수 없습니다: $topicName")
 
         val partition = topic.getPartition(partitionNumber)
-            ?: throw DomainException("Partition $partitionNumber not found in topic '$topicName'")
+            ?: throw DomainException("토픽 '$topicName'에서 파티션 $partitionNumber 번을 찾을 수 없습니다")
 
         val actualOffset = when (offsetType) {
             OffsetType.EARLIEST -> partition.earliestOffset
@@ -435,7 +439,7 @@ class KafkaApplicationService(
     override suspend fun sendMessage(connectionId: String, topicName: String, request: SendMessageRequest) {
         val connection = getConnectionOrThrow(connectionId)
         val topic = kafkaRepository.getTopicDetails(connection, TopicName(topicName))
-            ?: throw DomainException("Topic '$topicName' not found")
+            ?: throw DomainException("토픽을 찾을 수 없습니다: $topicName")
 
         kafkaRepository.sendMessage(
             connection,
@@ -560,7 +564,7 @@ class KafkaApplicationService(
 
     override suspend fun getConnectionMetrics(id: String): ConnectionMetricsDto {
         val connection = getConnectionOrThrow(id)
-        val uptime = java.time.Duration.between(connection.createdAt, LocalDateTime.now())
+        val uptime = Duration.between(connection.createdAt, LocalDateTime.now())
 
         return ConnectionMetricsDto(
             connectionId = id,
@@ -620,7 +624,7 @@ class KafkaApplicationService(
 
     private suspend fun getConnectionOrThrow(id: String): Connection {
         return connectionRepository.findById(ConnectionId(id))
-            ?: throw DomainException("Connection '$id' not found")
+            ?: throw DomainException("연결을 찾을 수 없습니다: $id")
     }
 
     private fun Connection.toConnectionDto(): ConnectionDto {
@@ -694,22 +698,22 @@ class KafkaApplicationService(
         )
     }
 
-    private fun createAdminClient(connection: Connection): org.apache.kafka.clients.admin.AdminClient {
-        val props = java.util.Properties()
-        props[org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = connection.getConnectionString()
-        props[org.apache.kafka.clients.admin.AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
-        props[org.apache.kafka.clients.admin.AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 5000
+    private fun createAdminClient(connection: Connection): AdminClient {
+        val props = Properties()
+        props[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = connection.getConnectionString()
+        props[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
+        props[AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 5000
 
         if (connection.sslEnabled) {
-            props[org.apache.kafka.clients.admin.AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SSL"
+            props[AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SSL"
         }
 
         if (connection.saslEnabled && connection.username != null) {
-            props[org.apache.kafka.clients.admin.AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SASL_PLAINTEXT"
+            props[AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SASL_PLAINTEXT"
             props["sasl.mechanism"] = "PLAIN"
             props["sasl.jaas.config"] = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${connection.username}\" password=\"${connection.password}\";"
         }
 
-        return org.apache.kafka.clients.admin.AdminClient.create(props)
+        return AdminClient.create(props)
     }
 }

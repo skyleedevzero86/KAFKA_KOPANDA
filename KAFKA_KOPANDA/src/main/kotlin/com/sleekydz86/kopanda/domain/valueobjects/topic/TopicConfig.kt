@@ -22,9 +22,9 @@ data class TopicConfig(
     val config: Map<String, String> = emptyMap()
 ) {
     init {
-        require(partitionCount > 0) { "Partition count must be positive" }
-        require(replicationFactor > 0) { "Replication factor must be positive" }
-        require(replicationFactor <= 10) { "Replication factor cannot exceed 10" }
+        require(partitionCount > 0) { "파티션 수는 1 이상이어야 합니다" }
+        require(replicationFactor > 0) { "복제 계수는 1 이상이어야 합니다" }
+        require(replicationFactor <= 10) { "복제 계수는 10을 넘을 수 없습니다" }
     }
 
     fun getConfigValue(key: String): String? = config[key]

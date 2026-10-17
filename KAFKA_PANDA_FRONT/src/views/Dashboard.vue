@@ -130,8 +130,12 @@ const connectionStore = useConnectionStore()
 const topicStore = useTopicStore()
 const metricsStore = useMetricsStore()
 
+const isClusterConnected = (connection: { lastConnected?: string }) => {
+  return Boolean(connection.lastConnected && connection.lastConnected !== 'Invalid Date')
+}
+
 const connectedClusters = computed(() => 
-  connectionStore.connections.filter(c => c.lastConnected).length
+  connectionStore.connections.filter(isClusterConnected).length
 )
 
 const totalTopics = computed(() => topicStore.topics.length)
@@ -188,18 +192,19 @@ const pieChartOptions = {
 }
 
 const getConnectionStatusType = (connection: any) => {
-  if (connection.lastConnected) return 'success'
-  return 'danger'
+  return isClusterConnected(connection) ? 'success' : 'danger'
 }
 
 const getConnectionStatusText = (connection: any) => {
-  if (connection.lastConnected) return '연결됨'
-  return '연결 안됨'
+  return isClusterConnected(connection) ? '연결됨' : '연결 안됨'
 }
 
 onMounted(async () => {
-  console.log('Dashboard 컴포넌트 마운트됨')
   await connectionStore.fetchConnections()
+  await connectionStore.judgeConnections()
+  if (!connectionStore.currentConnection && connectionStore.connections.length > 0) {
+    connectionStore.setCurrentConnection(connectionStore.connections[0])
+  }
   if (connectionStore.currentConnection) {
     await topicStore.fetchTopics(connectionStore.currentConnection.id, true)
     await metricsStore.fetchMetrics(connectionStore.currentConnection.id)
@@ -207,7 +212,7 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
-  console.log('Dashboard 컴포넌트 활성화됨')
+  console.log('대시보드 화면이 활성화되었습니다')
   await connectionStore.fetchConnections()
 })
 </script>
