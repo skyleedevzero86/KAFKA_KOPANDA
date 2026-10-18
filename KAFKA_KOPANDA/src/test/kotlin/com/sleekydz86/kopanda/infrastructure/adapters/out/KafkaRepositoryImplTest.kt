@@ -2,20 +2,27 @@ package com.sleekydz86.kopanda.infrastructure.adapters.out
 
 import com.sleekydz86.kopanda.domain.entities.Connection
 import com.sleekydz86.kopanda.domain.valueobjects.names.ConnectionName
+import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.network.Host
 import com.sleekydz86.kopanda.domain.valueobjects.network.Port
 import kotlinx.coroutines.runBlocking
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewTopic
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerConfig
+import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.Test
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.kafka.ConfluentKafkaContainer
 import java.util.Properties
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @Testcontainers
 class KafkaRepositoryImplTest {
@@ -30,16 +37,7 @@ class KafkaRepositoryImplTest {
             host = Host(host),
             port = Port(port)
         )
-        val props = Properties()
-        props[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = "$host:$port"
-        AdminClient.create(props).use { admin ->
-            admin.createTopics(
-                listOf(
-                    NewTopic("orders", 3, 1.toShort()),
-                    NewTopic("payments", 2, 1.toShort())
-                )
-            ).all().get()
-        }
+        ensureTopics(host, port)
         val repository = KafkaRepositoryImpl()
 
         // when
@@ -57,6 +55,64 @@ class KafkaRepositoryImplTest {
         assertEquals(2, cluster.totalTopics)
         assertEquals(5, cluster.totalPartitions)
         assertNull(cluster.version)
+    }
+
+    @Test
+    fun `orders 메시지 수와 오프셋과 토픽 건강을 반환한다`() = runBlocking {
+        // given
+        val host = "127.0.0.1"
+        val port = 19092
+        val connection = Connection(
+            name = ConnectionName("local"),
+            host = Host(host),
+            port = Port(port)
+        )
+        ensureTopics(host, port)
+        val producerProps = Properties()
+        producerProps[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = "$host:$port"
+        producerProps[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+        producerProps[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+        KafkaProducer<String, String>(producerProps).use { producer ->
+            repeat(30) { index ->
+                producer.send(ProducerRecord("orders", "key-$index", "value-$index")).get()
+            }
+        }
+        val repository = KafkaRepositoryImpl()
+        val topicName = TopicName("orders")
+
+        // when
+        val orders = repository.getTopics(connection).single { it.name.value == "orders" }
+        val endOffsetSum = (0 until 3).sumOf { partition ->
+            repository.getOffsetInfo(connection, topicName, partition).endOffset
+        }
+        val partition = repository.getPartitionDetails(connection, topicName, 0)
+        val health = repository.getTopicHealth(connection, topicName)
+
+        // then
+        assertEquals(30L, orders.getTotalMessageCount())
+        assertEquals(30L, endOffsetSum)
+        assertTrue(partition.leader >= 0)
+        assertEquals(1, partition.replicas.size)
+        assertEquals(1, partition.inSyncReplicas.size)
+        assertFalse(partition.isUnderReplicated)
+        assertTrue(health.isHealthy)
+        assertEquals(0, health.underReplicatedPartitions)
+        assertEquals(3, health.totalPartitions)
+    }
+
+    private fun ensureTopics(host: String, port: Int) {
+        val props = Properties()
+        props[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = "$host:$port"
+        AdminClient.create(props).use { admin ->
+            val existing = admin.listTopics().names().get()
+            val missing = listOf(
+                NewTopic("orders", 3, 1.toShort()),
+                NewTopic("payments", 2, 1.toShort())
+            ).filter { it.name() !in existing }
+            if (missing.isNotEmpty()) {
+                admin.createTopics(missing).all().get()
+            }
+        }
     }
 
     companion object {

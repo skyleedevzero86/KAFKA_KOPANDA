@@ -12,6 +12,7 @@ import com.sleekydz86.kopanda.application.dto.response.OffsetInfoDto
 import com.sleekydz86.kopanda.application.dto.response.PartitionMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.PerformanceMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.TopicHealthDto
+import com.sleekydz86.kopanda.application.dto.response.TopicIssueDto
 import com.sleekydz86.kopanda.application.dto.response.TopicMetricsDto
 import com.sleekydz86.kopanda.application.ports.out.KafkaRepository
 import com.sleekydz86.kopanda.domain.entities.Connection
@@ -22,6 +23,8 @@ import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
 import com.sleekydz86.kopanda.domain.valueobjects.ids.BrokerId
+import com.sleekydz86.kopanda.domain.valueobjects.common.IssueSeverity
+import com.sleekydz86.kopanda.domain.valueobjects.common.IssueType
 import com.sleekydz86.kopanda.domain.valueobjects.topic.TopicConfig
 import com.sleekydz86.kopanda.domain.valueobjects.message.MessageKey
 import com.sleekydz86.kopanda.domain.valueobjects.message.MessageValue
@@ -30,6 +33,7 @@ import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.ListTopicsOptions
 import org.apache.kafka.clients.admin.NewTopic
+import org.apache.kafka.clients.admin.OffsetSpec
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
@@ -46,6 +50,7 @@ import org.springframework.stereotype.Repository
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
+import java.util.logging.Level
 import java.util.logging.Logger
 
 @Repository
@@ -57,8 +62,8 @@ class KafkaRepositoryImpl : KafkaRepository {
         val adminClient = createAdminClient(connection)
         return try {
             val topicList = adminClient.listTopics().names().get()
-            
-            topicList.mapNotNull { topicName ->
+
+            val topics = topicList.mapNotNull { topicName ->
                 try {
                     val topicDetails = adminClient.describeTopics(listOf(topicName)).all().get()[topicName]
                     val partitions = topicDetails?.partitions()?.let { toPartitions(it) } ?: emptyList()
@@ -81,6 +86,8 @@ class KafkaRepositoryImpl : KafkaRepository {
                     }
                 }
             }
+            fillOffsets(adminClient, topics)
+            topics
         } catch (e: Exception) {
             when (e) {
                 is UnsupportedVersionException -> {
@@ -102,7 +109,9 @@ class KafkaRepositoryImpl : KafkaRepository {
             val topicDetails = adminClient.describeTopics(listOf(topicName.value)).all().get()[topicName.value]
             if (topicDetails == null) return null
 
-            toTopic(topicName.value, toPartitions(topicDetails.partitions()))
+            val topic = toTopic(topicName.value, toPartitions(topicDetails.partitions()))
+            fillOffsets(adminClient, listOf(topic))
+            topic
         } catch (e: Exception) {
             logger.warning("토픽 상세 정보 조회 실패: ${topicName.value} - ${e.message}")
             try {
@@ -332,22 +341,18 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getTopicHealth(connection: Connection, topicName: TopicName): TopicHealthDto {
-        return TopicHealthDto(
-            topicName = topicName.value,
-            isHealthy = true,
-            healthScore = 100,
-            underReplicatedPartitions = 0,
-            offlinePartitions = 0,
-            totalPartitions = 0,
-            replicationFactor = 1,
-            averageReplicationFactor = 1.0,
-            lastUpdated = LocalDateTime.now(),
-            issues = emptyList()
-        )
+        return createAdminClient(connection).use { adminClient ->
+            topicHealth(adminClient, topicName.value)
+        }
     }
 
     override suspend fun getAllTopicsHealth(connection: Connection): List<TopicHealthDto> {
-        return emptyList()
+        return createAdminClient(connection).use { adminClient ->
+            val listings = adminClient.listTopics(ListTopicsOptions().listInternal(true)).listings().get()
+            listings.filter { !it.isInternal }.map { listing ->
+                topicHealth(adminClient, listing.name())
+            }
+        }
     }
 
     override suspend fun getConsumerGroupMetrics(connection: Connection, groupId: String): ConsumerGroupMetricsDto {
@@ -384,32 +389,48 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getPartitionDetails(connection: Connection, topicName: TopicName, partitionNumber: Int): PartitionDetailDto {
-        return PartitionDetailDto(
-            topicName = topicName.value,
-            partitionNumber = partitionNumber,
-            leader = 0,
-            replicas = emptyList(),
-            inSyncReplicas = emptyList(),
-            earliestOffset = 0L,
-            latestOffset = 0L,
-            messageCount = 0L,
-            isHealthy = true,
-            isUnderReplicated = false,
-            lastUpdated = LocalDateTime.now()
-        )
+        return createAdminClient(connection).use { adminClient ->
+            val partitionInfo = partitionInfo(adminClient, topicName.value, partitionNumber)
+            val offsets = readOffsets(adminClient, listOf(TopicPartition(topicName.value, partitionNumber)))
+            val offset = offsets.getValue(TopicPartition(topicName.value, partitionNumber))
+            val replicas = brokerIds(partitionInfo.replicas()).map { it.value }
+            val inSyncReplicas = brokerIds(partitionInfo.isr()).map { it.value }
+            val leader = partitionInfo.leader()?.takeIf { !it.isEmpty && it.id() >= 0 }
+            val underReplicated = partitionInfo.isr().size < partitionInfo.replicas().size
+            val earliest = offset.earliest
+            val latest = offset.latest
+            PartitionDetailDto(
+                topicName = topicName.value,
+                partitionNumber = partitionNumber,
+                leader = leader?.id() ?: -1,
+                replicas = replicas,
+                inSyncReplicas = inSyncReplicas,
+                earliestOffset = earliest,
+                latestOffset = latest,
+                messageCount = (latest - earliest).coerceAtLeast(0),
+                isHealthy = leader != null && !underReplicated,
+                isUnderReplicated = underReplicated,
+                lastUpdated = LocalDateTime.now()
+            )
+        }
     }
 
     override suspend fun getOffsetInfo(connection: Connection, topicName: TopicName, partitionNumber: Int): OffsetInfoDto {
-        return OffsetInfoDto(
-            topicName = topicName.value,
-            partitionNumber = partitionNumber,
-            currentOffset = 0L,
-            committedOffset = 0L,
-            endOffset = 0L,
-            lag = 0L,
-            consumerGroup = null,
-            lastCommitTime = null
-        )
+        return createAdminClient(connection).use { adminClient ->
+            partitionInfo(adminClient, topicName.value, partitionNumber)
+            val offsets = readOffsets(adminClient, listOf(TopicPartition(topicName.value, partitionNumber)))
+            val offset = offsets.getValue(TopicPartition(topicName.value, partitionNumber))
+            OffsetInfoDto(
+                topicName = topicName.value,
+                partitionNumber = partitionNumber,
+                currentOffset = offset.earliest,
+                committedOffset = null,
+                endOffset = offset.latest,
+                lag = null,
+                consumerGroup = null,
+                lastCommitTime = null
+            )
+        }
     }
 
     override suspend fun setOffset(connection: Connection, topicName: TopicName, partitionNumber: Int, offset: Long): Boolean {
@@ -478,6 +499,105 @@ class KafkaRepositoryImpl : KafkaRepository {
             offsets = emptyMap()
         )
     }
+
+    private fun topicHealth(adminClient: AdminClient, topicName: String): TopicHealthDto {
+        val description = adminClient.describeTopics(listOf(topicName)).allTopicNames().get()[topicName]
+            ?: throw KafkaException("토픽을 찾을 수 없습니다: $topicName")
+        val partitions = description.partitions()
+        var underReplicated = 0
+        var offline = 0
+        var healthy = 0
+        partitions.forEach { info ->
+            val leader = info.leader()
+            val hasLeader = leader != null && !leader.isEmpty && leader.id() >= 0
+            val missingReplicas = info.isr().size < info.replicas().size
+            if (!hasLeader) {
+                offline += 1
+            }
+            if (missingReplicas) {
+                underReplicated += 1
+            }
+            if (hasLeader && !missingReplicas) {
+                healthy += 1
+            }
+        }
+        val total = partitions.size
+        val replicaSizes = partitions.map { it.replicas().size }
+        val issues = mutableListOf<TopicIssueDto>()
+        if (underReplicated > 0) {
+            issues += TopicIssueDto(
+                type = IssueType.UNDER_REPLICATED,
+                severity = IssueSeverity.MEDIUM,
+                description = "복제 부족 파티션이 ${underReplicated}개 있습니다."
+            )
+        }
+        if (offline > 0) {
+            issues += TopicIssueDto(
+                type = IssueType.OFFLINE_PARTITION,
+                severity = IssueSeverity.HIGH,
+                description = "리더가 없는 파티션이 ${offline}개 있습니다."
+            )
+        }
+        return TopicHealthDto(
+            topicName = topicName,
+            isHealthy = underReplicated == 0 && offline == 0,
+            healthScore = if (total == 0) 0 else healthy * 100 / total,
+            underReplicatedPartitions = underReplicated,
+            offlinePartitions = offline,
+            totalPartitions = total,
+            replicationFactor = replicaSizes.maxOrNull() ?: 0,
+            averageReplicationFactor = if (replicaSizes.isEmpty()) 0.0 else replicaSizes.average(),
+            lastUpdated = LocalDateTime.now(),
+            issues = issues
+        )
+    }
+
+    private fun partitionInfo(adminClient: AdminClient, topicName: String, partitionNumber: Int): TopicPartitionInfo {
+        val description = adminClient.describeTopics(listOf(topicName)).allTopicNames().get()[topicName]
+            ?: throw KafkaException("토픽을 찾을 수 없습니다: $topicName")
+        return description.partitions().find { it.partition() == partitionNumber }
+            ?: throw KafkaException("파티션을 찾을 수 없습니다: $topicName-$partitionNumber")
+    }
+
+    private fun fillOffsets(adminClient: AdminClient, topics: List<Topic>) {
+        val indexed = topics.flatMap { topic ->
+            topic.partitions.map { partition ->
+                TopicPartition(topic.name.value, partition.partitionNumber.value) to partition
+            }
+        }
+        if (indexed.isEmpty()) {
+            return
+        }
+        try {
+            val offsets = readOffsets(adminClient, indexed.map { it.first })
+            indexed.forEach { (topicPartition, partition) ->
+                val offset = offsets[topicPartition] ?: return@forEach
+                partition.updateOffsetRange(offset.earliest, offset.latest)
+                partition.updateMessageCount((offset.latest - offset.earliest).coerceAtLeast(0))
+            }
+        } catch (e: Exception) {
+            logger.log(Level.WARNING, "오프셋 조회에 실패했습니다", e)
+        }
+    }
+
+    private fun readOffsets(adminClient: AdminClient, partitions: List<TopicPartition>): Map<TopicPartition, OffsetPair> {
+        if (partitions.isEmpty()) {
+            return emptyMap()
+        }
+        val earliest = adminClient.listOffsets(partitions.associateWith { OffsetSpec.earliest() }).all().get()
+        val latest = adminClient.listOffsets(partitions.associateWith { OffsetSpec.latest() }).all().get()
+        return partitions.associateWith { topicPartition ->
+            OffsetPair(
+                earliest = earliest.getValue(topicPartition).offset(),
+                latest = latest.getValue(topicPartition).offset()
+            )
+        }
+    }
+
+    private data class OffsetPair(
+        val earliest: Long,
+        val latest: Long
+    )
 
     private fun toPartitions(
         partitionInfos: List<TopicPartitionInfo>
