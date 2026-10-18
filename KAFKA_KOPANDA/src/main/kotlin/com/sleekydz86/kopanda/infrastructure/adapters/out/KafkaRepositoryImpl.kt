@@ -6,9 +6,11 @@ import com.sleekydz86.kopanda.application.dto.response.BrokerMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.ClusterInfoDto
 import com.sleekydz86.kopanda.application.dto.response.ConsumerGroupDto
 import com.sleekydz86.kopanda.application.dto.response.ConsumerGroupMetricsDto
+import com.sleekydz86.kopanda.application.dto.response.ConsumerMemberMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.DetailedMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.KafkaMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.OffsetInfoDto
+import com.sleekydz86.kopanda.application.dto.response.PartitionLagDto
 import com.sleekydz86.kopanda.application.dto.response.PartitionMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.PerformanceMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.TopicHealthDto
@@ -39,6 +41,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.ConsumerGroupState
 import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.Node
 import org.apache.kafka.common.TopicPartition
@@ -356,23 +359,17 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getConsumerGroupMetrics(connection: Connection, groupId: String): ConsumerGroupMetricsDto {
-        return ConsumerGroupMetricsDto(
-            groupId = groupId,
-            state = "Empty",
-            memberCount = 0,
-            topicCount = 0,
-            totalLag = 0L,
-            averageLag = 0.0,
-            maxLag = 0L,
-            minLag = 0L,
-            lastCommitTime = null,
-            partitions = emptyList(),
-            members = emptyList()
-        )
+        return createAdminClient(connection).use { adminClient ->
+            consumerGroupMetrics(adminClient, groupId)
+        }
     }
 
     override suspend fun getAllConsumerGroupMetrics(connection: Connection): List<ConsumerGroupMetricsDto> {
-        return emptyList()
+        return createAdminClient(connection).use { adminClient ->
+            adminClient.listConsumerGroups().all().get().map { group ->
+                consumerGroupMetrics(adminClient, group.groupId())
+            }
+        }
     }
 
     override suspend fun getPerformanceMetrics(connection: Connection): PerformanceMetricsDto {
@@ -557,6 +554,62 @@ class KafkaRepositoryImpl : KafkaRepository {
             ?: throw KafkaException("토픽을 찾을 수 없습니다: $topicName")
         return description.partitions().find { it.partition() == partitionNumber }
             ?: throw KafkaException("파티션을 찾을 수 없습니다: $topicName-$partitionNumber")
+    }
+
+    private fun consumerGroupMetrics(adminClient: AdminClient, groupId: String): ConsumerGroupMetricsDto {
+        val description = adminClient.describeConsumerGroups(listOf(groupId)).all().get()[groupId]
+            ?: throw KafkaException("컨슈머 그룹을 찾을 수 없습니다: $groupId")
+        val committed = adminClient.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata(groupId).get()
+        if (description.state() == ConsumerGroupState.DEAD && description.members().isEmpty() && committed.isEmpty()) {
+            throw KafkaException("컨슈머 그룹을 찾을 수 없습니다: $groupId")
+        }
+        val latest = readOffsets(adminClient, committed.keys.toList())
+        val memberByPartition = description.members().flatMap { member ->
+            member.assignment().topicPartitions().map { topicPartition -> topicPartition to member.consumerId() }
+        }.toMap()
+        val partitions = committed.map { (topicPartition, metadata) ->
+            val endOffset = latest[topicPartition]?.latest
+                ?: throw KafkaException("최신 오프셋을 가져오지 못했습니다: ${topicPartition.topic()}-${topicPartition.partition()}")
+            val committedOffset = metadata.offset()
+            PartitionLagDto(
+                topic = topicPartition.topic(),
+                partition = topicPartition.partition(),
+                currentOffset = committedOffset,
+                committedOffset = committedOffset,
+                endOffset = endOffset,
+                lag = (endOffset - committedOffset).coerceAtLeast(0),
+                consumerId = memberByPartition[topicPartition]
+            )
+        }
+        val lags = partitions.map { it.lag }
+        val members = description.members().map { member ->
+            val assigned = member.assignment().topicPartitions()
+            val memberLags = partitions.filter { lag ->
+                assigned.any { it.topic() == lag.topic && it.partition() == lag.partition }
+            }.map { it.lag }
+            ConsumerMemberMetricsDto(
+                memberId = member.consumerId(),
+                clientId = member.clientId(),
+                clientHost = member.host(),
+                assignedPartitions = assigned.size,
+                totalLag = memberLags.sum(),
+                averageLag = if (memberLags.isEmpty()) 0.0 else memberLags.average(),
+                lastHeartbeat = null
+            )
+        }
+        return ConsumerGroupMetricsDto(
+            groupId = groupId,
+            state = description.state().toString(),
+            memberCount = description.members().size,
+            topicCount = committed.keys.map { it.topic() }.distinct().size,
+            totalLag = lags.sum(),
+            averageLag = if (lags.isEmpty()) 0.0 else lags.average(),
+            maxLag = lags.maxOrNull() ?: 0L,
+            minLag = lags.minOrNull() ?: 0L,
+            lastCommitTime = null,
+            partitions = partitions,
+            members = members
+        )
     }
 
     private fun fillOffsets(adminClient: AdminClient, topics: List<Topic>) {
