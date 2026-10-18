@@ -2,6 +2,7 @@ package com.sleekydz86.kopanda.infrastructure.adapters.`in`.rest
 
 import com.sleekydz86.kopanda.application.dto.response.ErrorResponse
 import com.sleekydz86.kopanda.shared.domain.DomainException
+import org.apache.kafka.common.KafkaException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -11,6 +12,8 @@ import org.springframework.web.context.request.WebRequest
 import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeoutException
 
 @ControllerAdvice
 class GlobalExceptionHandler {
@@ -61,6 +64,21 @@ class GlobalExceptionHandler {
         )
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse)
+    }
+
+    @ExceptionHandler(KafkaException::class, ExecutionException::class, TimeoutException::class)
+    fun handleKafkaQueryException(ex: Exception, request: WebRequest): ResponseEntity<ErrorResponse> {
+        logger.error("Kafka 조회에 실패했습니다: {}", ex.message, ex)
+
+        val errorResponse = ErrorResponse(
+            timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+            status = HttpStatus.SERVICE_UNAVAILABLE.value(),
+            error = "서비스를 사용할 수 없음",
+            message = "Kafka 조회에 실패했습니다.",
+            path = request.getDescription(false).removePrefix("uri=")
+        )
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse)
     }
 
     @ExceptionHandler(Exception::class)

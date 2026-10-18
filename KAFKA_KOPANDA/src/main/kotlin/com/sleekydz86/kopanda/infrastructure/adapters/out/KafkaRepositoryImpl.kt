@@ -28,12 +28,14 @@ import com.sleekydz86.kopanda.domain.valueobjects.message.MessageValue
 import com.sleekydz86.kopanda.domain.valueobjects.message.Timestamp
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
+import org.apache.kafka.clients.admin.ListTopicsOptions
 import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.Node
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.TopicPartitionInfo
@@ -261,13 +263,14 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getMetrics(connection: Connection): KafkaMetricsDto {
+        val snapshot = snapshot(connection)
         return KafkaMetricsDto(
-            brokerCount = 1,
-            topicCount = 0,
-            totalPartitions = 0,
-            messagesPerSecond = 0.0,
-            bytesInPerSec = 0.0,
-            bytesOutPerSec = 0.0,
+            brokerCount = snapshot.brokers,
+            topicCount = snapshot.topics,
+            totalPartitions = snapshot.partitions,
+            messagesPerSecond = null,
+            bytesInPerSec = null,
+            bytesOutPerSec = null,
             activeConnections = 0,
             timestamp = LocalDateTime.now()
         )
@@ -414,22 +417,24 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getClusterInfo(connection: Connection): ClusterInfoDto {
+        val snapshot = snapshot(connection)
         return ClusterInfoDto(
-            clusterId = "test-cluster",
-            controllerId = 0,
-            totalBrokers = 1,
-            activeBrokers = 1,
-            totalTopics = 0,
-            totalPartitions = 0,
-            version = "2.8.0",
+            clusterId = snapshot.clusterId,
+            controllerId = snapshot.controllerId,
+            totalBrokers = snapshot.brokers,
+            activeBrokers = snapshot.brokers,
+            totalTopics = snapshot.topics,
+            totalPartitions = snapshot.partitions,
+            version = null,
             lastUpdated = LocalDateTime.now()
         )
     }
 
     override suspend fun getBrokerMetrics(connection: Connection): BrokerMetricsDto {
+        val snapshot = snapshot(connection)
         return BrokerMetricsDto(
-            totalBrokers = 1,
-            activeBrokers = 1,
+            totalBrokers = snapshot.brokers,
+            activeBrokers = snapshot.brokers,
             offlineBrokers = 0,
             averageResponseTime = 0L,
             totalDiskUsage = 0L,
@@ -438,27 +443,29 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getTopicMetrics(connection: Connection): TopicMetricsDto {
+        val snapshot = snapshot(connection)
         return TopicMetricsDto(
-            totalTopics = 0,
-            internalTopics = 0,
-            userTopics = 0,
-            totalPartitions = 0,
-            underReplicatedPartitions = 0,
-            offlinePartitions = 0,
+            totalTopics = snapshot.topics,
+            internalTopics = snapshot.internalTopics,
+            userTopics = snapshot.topics,
+            totalPartitions = snapshot.partitions,
+            underReplicatedPartitions = snapshot.underReplicated,
+            offlinePartitions = snapshot.offline,
             totalMessages = 0L,
-            messagesPerSecond = 0.0
+            messagesPerSecond = null
         )
     }
 
     override suspend fun getPartitionMetrics(connection: Connection): PartitionMetricsDto {
+        val snapshot = snapshot(connection)
         return PartitionMetricsDto(
-            totalPartitions = 0,
-            healthyPartitions = 0,
-            underReplicatedPartitions = 0,
-            offlinePartitions = 0,
-            averageReplicationFactor = 0.0,
+            totalPartitions = snapshot.partitions,
+            healthyPartitions = snapshot.healthyPartitions,
+            underReplicatedPartitions = snapshot.underReplicated,
+            offlinePartitions = snapshot.offline,
+            averageReplicationFactor = snapshot.averageReplicationFactor,
             totalMessages = 0L,
-            averageMessagesPerPartition = 0.0
+            averageMessagesPerPartition = null
         )
     }
 
@@ -513,6 +520,62 @@ class KafkaRepositoryImpl : KafkaRepository {
             partitions.forEach { addPartition(it) }
         }
     }
+
+    private data class ClusterSnapshot(
+        val clusterId: String,
+        val controllerId: Int,
+        val brokers: Int,
+        val topics: Int,
+        val internalTopics: Int,
+        val partitions: Int,
+        val underReplicated: Int,
+        val offline: Int,
+        val healthyPartitions: Int,
+        val averageReplicationFactor: Double
+    )
+
+    private fun snapshot(connection: Connection): ClusterSnapshot =
+        createAdminClient(connection).use { admin ->
+            val described = admin.describeCluster()
+            val clusterId = described.clusterId().get()
+                ?: throw KafkaException("클러스터 ID를 가져오지 못했습니다")
+            val controllerId = described.controller().get()?.id()?.takeIf { it >= 0 } ?: -1
+            val brokers = described.nodes().get().size
+            val listings = admin.listTopics(ListTopicsOptions().listInternal(true)).listings().get()
+            val userNames = listings.filter { !it.isInternal }.map { it.name() }
+            val descriptions = if (userNames.isEmpty()) {
+                emptyMap()
+            } else {
+                admin.describeTopics(userNames).allTopicNames().get()
+            }
+            val parts = descriptions.values.flatMap { it.partitions() }
+            val underReplicated = parts.count { it.isr().size < it.replicas().size }
+            val offline = parts.count { part ->
+                val leader = part.leader()
+                leader == null || leader.isEmpty
+            }
+            val healthyPartitions = parts.count { part ->
+                val leader = part.leader()
+                leader != null && !leader.isEmpty && part.isr().size >= part.replicas().size
+            }
+            val averageReplicationFactor = if (parts.isEmpty()) {
+                0.0
+            } else {
+                parts.map { it.replicas().size }.average()
+            }
+            ClusterSnapshot(
+                clusterId = clusterId,
+                controllerId = controllerId,
+                brokers = brokers,
+                topics = userNames.size,
+                internalTopics = listings.count { it.isInternal },
+                partitions = parts.size,
+                underReplicated = underReplicated,
+                offline = offline,
+                healthyPartitions = healthyPartitions,
+                averageReplicationFactor = averageReplicationFactor
+            )
+        }
 
     private fun createAdminClient(connection: Connection): AdminClient {
         val config = Properties()
