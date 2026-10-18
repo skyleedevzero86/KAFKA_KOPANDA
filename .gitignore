@@ -80,3 +80,6 @@ out/
 test copy 2.html
 test copy.html
 test.html
+
+application-*.yml
+캡처/

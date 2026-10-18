@@ -6,9 +6,9 @@ data class KafkaMetricsDto(
     val brokerCount: Int,
     val topicCount: Int,
     val totalPartitions: Int,
-    val messagesPerSecond: Double,
-    val bytesInPerSec: Double,
-    val bytesOutPerSec: Double,
+    val messagesPerSecond: Double?,
+    val bytesInPerSec: Double?,
+    val bytesOutPerSec: Double?,
     val activeConnections: Int,
     val timestamp: LocalDateTime
 )

@@ -9,6 +9,6 @@ data class ClusterInfoDto(
     val activeBrokers: Int,
     val totalTopics: Int,
     val totalPartitions: Int,
-    val version: String,
+    val version: String?,
     val lastUpdated: LocalDateTime
 )

@@ -2,9 +2,9 @@ export interface KafkaMetricsDto {
   brokerCount: number
   topicCount: number
   totalPartitions: number
-  messagesPerSecond: number
-  bytesInPerSec: number
-  bytesOutPerSec: number
+  messagesPerSecond: number | null
+  bytesInPerSec: number | null
+  bytesOutPerSec: number | null
   activeConnections: number
   timestamp: string
 }
