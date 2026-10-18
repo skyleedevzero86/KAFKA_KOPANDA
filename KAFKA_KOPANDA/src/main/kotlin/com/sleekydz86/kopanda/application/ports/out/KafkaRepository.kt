@@ -56,7 +56,7 @@ interface KafkaRepository {
     suspend fun getPerformanceMetrics(connection: Connection): PerformanceMetricsDto
     suspend fun getPartitionDetails(connection: Connection, topicName: TopicName, partitionNumber: Int): PartitionDetailDto
     suspend fun getOffsetInfo(connection: Connection, topicName: TopicName, partitionNumber: Int): OffsetInfoDto
-    suspend fun setOffset(connection: Connection, topicName: TopicName, partitionNumber: Int, offset: Long): Boolean
+    suspend fun setOffset(connection: Connection, topicName: TopicName, partitionNumber: Int, groupId: String, offset: Long): Boolean
     suspend fun getClusterInfo(connection: Connection): ClusterInfoDto
     suspend fun getBrokerMetrics(connection: Connection): BrokerMetricsDto
     suspend fun getTopicMetrics(connection: Connection): TopicMetricsDto

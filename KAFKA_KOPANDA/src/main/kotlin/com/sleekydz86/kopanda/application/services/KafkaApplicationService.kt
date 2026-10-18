@@ -512,9 +512,9 @@ class KafkaApplicationService(
         return kafkaRepository.getOffsetInfo(connection, TopicName(topicName), partitionNumber)
     }
 
-    override suspend fun setOffset(connectionId: String, topicName: String, partitionNumber: Int, offset: Long): Boolean {
+    override suspend fun setOffset(connectionId: String, topicName: String, partitionNumber: Int, groupId: String, offset: Long): Boolean {
         val connection = getConnectionOrThrow(connectionId)
-        return kafkaRepository.setOffset(connection, TopicName(topicName), partitionNumber, offset)
+        return kafkaRepository.setOffset(connection, TopicName(topicName), partitionNumber, groupId, offset)
     }
 
     override suspend fun getClusterInfo(connectionId: String): ClusterInfoDto {

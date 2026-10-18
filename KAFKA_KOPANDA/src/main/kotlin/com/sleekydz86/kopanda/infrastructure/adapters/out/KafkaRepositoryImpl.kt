@@ -28,6 +28,7 @@ import com.sleekydz86.kopanda.domain.valueobjects.ids.BrokerId
 import com.sleekydz86.kopanda.domain.valueobjects.common.IssueSeverity
 import com.sleekydz86.kopanda.domain.valueobjects.common.IssueType
 import com.sleekydz86.kopanda.domain.valueobjects.topic.TopicConfig
+import com.sleekydz86.kopanda.shared.domain.OffsetChangeConflictException
 import com.sleekydz86.kopanda.domain.valueobjects.message.MessageKey
 import com.sleekydz86.kopanda.domain.valueobjects.message.MessageValue
 import com.sleekydz86.kopanda.domain.valueobjects.message.Timestamp
@@ -38,6 +39,7 @@ import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.admin.OffsetSpec
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -48,11 +50,14 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.TopicPartitionInfo
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
+import org.apache.kafka.common.errors.GroupSubscribedToTopicException
+import org.apache.kafka.common.errors.UnknownMemberIdException
 import org.apache.kafka.common.errors.UnsupportedVersionException
 import org.springframework.stereotype.Repository
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
+import java.util.concurrent.ExecutionException
 import java.util.logging.Level
 import java.util.logging.Logger
 
@@ -430,8 +435,36 @@ class KafkaRepositoryImpl : KafkaRepository {
         }
     }
 
-    override suspend fun setOffset(connection: Connection, topicName: TopicName, partitionNumber: Int, offset: Long): Boolean {
-        return true
+    override suspend fun setOffset(
+        connection: Connection,
+        topicName: TopicName,
+        partitionNumber: Int,
+        groupId: String,
+        offset: Long
+    ): Boolean {
+        return createAdminClient(connection).use { adminClient ->
+            partitionInfo(adminClient, topicName.value, partitionNumber)
+            val topicPartition = TopicPartition(topicName.value, partitionNumber)
+            val range = readOffsets(adminClient, listOf(topicPartition)).getValue(topicPartition)
+            if (offset < range.earliest || offset > range.latest) {
+                throw IllegalArgumentException("오프셋이 허용 범위를 벗어났습니다: $offset")
+            }
+            try {
+                adminClient.alterConsumerGroupOffsets(
+                    groupId,
+                    mapOf(topicPartition to OffsetAndMetadata(offset))
+                ).all().get()
+            } catch (e: ExecutionException) {
+                if (generateSequence(e as Throwable) { it.cause }.any {
+                        it is UnknownMemberIdException || it is GroupSubscribedToTopicException
+                    }
+                ) {
+                    throw OffsetChangeConflictException("컨슈머 그룹에 실행 중인 소비자가 있어 오프셋을 바꿀 수 없습니다")
+                }
+                throw e
+            }
+            true
+        }
     }
 
     override suspend fun getClusterInfo(connection: Connection): ClusterInfoDto {

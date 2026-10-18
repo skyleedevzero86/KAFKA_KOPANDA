@@ -1,6 +1,7 @@
 package com.sleekydz86.kopanda.infrastructure.adapters.out
 
 import com.sleekydz86.kopanda.domain.entities.Connection
+import com.sleekydz86.kopanda.shared.domain.OffsetChangeConflictException
 import com.sleekydz86.kopanda.domain.valueobjects.names.ConnectionName
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.network.Host
@@ -25,6 +26,7 @@ import java.time.Duration
 import java.util.Properties
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
@@ -174,6 +176,91 @@ class KafkaRepositoryImplTest {
             }
         }
     } }
+
+    @Test
+    fun `audit 그룹 오프셋을 바꾸고 범위와 실행 중 소비자를 거절한다`() {
+        runBlocking {
+            // given
+            val host = "127.0.0.1"
+            val port = 19092
+            val topic = "audit-log"
+            val connection = Connection(
+                name = ConnectionName("local"),
+                host = Host(host),
+                port = Port(port)
+            )
+            val topicName = TopicName(topic)
+            val adminProps = Properties()
+            adminProps[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = "$host:$port"
+            AdminClient.create(adminProps).use { admin ->
+                val existing = admin.listTopics().names().get()
+                if (topic !in existing) {
+                    admin.createTopics(listOf(NewTopic(topic, 3, 1.toShort()))).all().get()
+                }
+            }
+            val producerProps = Properties()
+            producerProps[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = "$host:$port"
+            producerProps[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+            producerProps[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+            KafkaProducer<String, String>(producerProps).use { producer ->
+                repeat(3) { partition ->
+                    repeat(10) { index ->
+                        producer.send(ProducerRecord(topic, partition, "key-$partition-$index", "value-$index")).get()
+                    }
+                }
+            }
+            val consumerProps = Properties()
+            consumerProps[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "$host:$port"
+            consumerProps[ConsumerConfig.GROUP_ID_CONFIG] = "audit"
+            consumerProps[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = "false"
+            consumerProps[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
+            consumerProps[ConsumerConfig.MAX_POLL_RECORDS_CONFIG] = 1
+            consumerProps[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
+            consumerProps[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
+            KafkaConsumer<String, String>(consumerProps).use { consumer ->
+                val partitions = (0 until 3).map { TopicPartition(topic, it) }
+                consumer.assign(partitions)
+                consumer.seekToBeginning(partitions)
+                var read = 0
+                val deadline = System.currentTimeMillis() + 20_000
+                while (read < 10 && System.currentTimeMillis() < deadline) {
+                    read += consumer.poll(Duration.ofMillis(500)).count()
+                }
+                assertEquals(10, read)
+                consumer.commitSync()
+            }
+            val repository = KafkaRepositoryImpl()
+
+            try {
+                // when
+                val changed = repository.setOffset(connection, topicName, 1, "audit", 5)
+                val committed = repository.getConsumerGroupMetrics(connection, "audit")
+                    .partitions.single { it.partition == 1 }.committedOffset
+
+                // then
+                assertTrue(changed)
+                assertEquals(5L, committed)
+                assertFailsWith<IllegalArgumentException> {
+                    repository.setOffset(connection, topicName, 1, "audit", 999)
+                }
+                KafkaConsumer<String, String>(consumerProps).use { consumer ->
+                    consumer.subscribe(listOf(topic))
+                    val deadline = System.currentTimeMillis() + 20_000
+                    while (consumer.assignment().isEmpty() && System.currentTimeMillis() < deadline) {
+                        consumer.poll(Duration.ofMillis(500))
+                    }
+                    assertTrue(consumer.assignment().isNotEmpty())
+                    assertFailsWith<OffsetChangeConflictException> {
+                        repository.setOffset(connection, topicName, 1, "audit", 5)
+                    }
+                }
+            } finally {
+                AdminClient.create(adminProps).use { admin ->
+                    admin.deleteTopics(listOf(topic)).all().get()
+                }
+            }
+        }
+    }
 
     private fun ensureTopics(host: String, port: Int) {
         val props = Properties()
