@@ -165,3 +165,7 @@ alerts:
       offline-partitions:
         warning: 0
         critical: 1
+
+kopanda:
+  crypto:
+    key: ${KOPANDA_CRYPTO_KEY:}

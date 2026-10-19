@@ -19,4 +19,8 @@ data class CreateConnectionRequest(
     val saslEnabled: Boolean = false,
     val username: String? = null,
     val password: String? = null
-)
+) {
+    override fun toString(): String {
+        return "CreateConnectionRequest(name=$name, host=$host, port=$port, sslEnabled=$sslEnabled, saslEnabled=$saslEnabled, username=$username)"
+    }
+}

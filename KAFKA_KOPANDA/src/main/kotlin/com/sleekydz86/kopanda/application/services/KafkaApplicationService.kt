@@ -52,6 +52,7 @@ import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
 import com.sleekydz86.kopanda.infrastructure.adapters.out.AdminClientRegistry
 import com.sleekydz86.kopanda.infrastructure.adapters.out.KafkaClientProps
+import com.sleekydz86.kopanda.infrastructure.persistence.crypto.ConnectionPasswordCrypto
 import com.sleekydz86.kopanda.shared.domain.DomainException
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -70,7 +71,8 @@ class KafkaApplicationService(
     private val kafkaRepository: KafkaRepository,
     private val activityManagementUseCase: ActivityManagementUseCase,
     private val connectionHistoryRepository: ConnectionHistoryRepository,
-    private val adminClients: AdminClientRegistry
+    private val adminClients: AdminClientRegistry,
+    private val passwordCrypto: ConnectionPasswordCrypto
 ) : ConnectionManagementUseCase, KafkaManagementUseCase {
 
     private val logger = LoggerFactory.getLogger(KafkaApplicationService::class.java)
@@ -85,6 +87,7 @@ class KafkaApplicationService(
     }
 
     override suspend fun createConnection(request: CreateConnectionRequest): ConnectionDto {
+        passwordCrypto.requireStorable(request.password)
         logger.info("연결 생성 시작: ${request.name}")
 
         try {
@@ -135,6 +138,7 @@ class KafkaApplicationService(
     }
 
     override suspend fun updateConnection(id: String, request: UpdateConnectionRequest): ConnectionDto {
+        passwordCrypto.requireStorable(request.password)
         val connection = getConnectionOrThrow(id)
         connection.updateConnectionInfo(
             name = request.name,
@@ -185,6 +189,7 @@ class KafkaApplicationService(
     }
 
     override suspend fun testConnection(request: CreateConnectionRequest): ConnectionTestResult {
+        passwordCrypto.requireStorable(request.password)
         val testConnection = Connection.create(
             name = request.name,
             host = request.host,
