@@ -784,8 +784,7 @@ class KafkaRepositoryImpl : KafkaRepository {
         }
 
     private fun createAdminClient(connection: Connection): AdminClient {
-        val config = Properties()
-        config[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
+        val config = KafkaClientProps.base(connection)
         config[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
         config[AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 10000
         
@@ -799,8 +798,7 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     private fun createConsumer(connection: Connection): KafkaConsumer<String, String> {
-        val config = Properties()
-        config[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
+        val config = KafkaClientProps.base(connection)
         config[ConsumerConfig.GROUP_ID_CONFIG] = "kopanda-consumer"
         config[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
         config[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
@@ -809,8 +807,7 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     private fun createProducer(connection: Connection): KafkaProducer<String, String> {
-        val config = Properties()
-        config[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
+        val config = KafkaClientProps.base(connection)
         config[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
         config[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
         return KafkaProducer(config)

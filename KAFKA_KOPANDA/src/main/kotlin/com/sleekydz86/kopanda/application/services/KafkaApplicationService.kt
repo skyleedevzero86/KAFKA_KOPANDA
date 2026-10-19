@@ -50,6 +50,7 @@ import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
+import com.sleekydz86.kopanda.infrastructure.adapters.out.KafkaClientProps
 import com.sleekydz86.kopanda.shared.domain.DomainException
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -59,7 +60,6 @@ import java.time.LocalDateTime
 import org.slf4j.LoggerFactory
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import java.time.Duration
-import java.util.Properties
 
 
 @Service
@@ -699,20 +699,9 @@ class KafkaApplicationService(
     }
 
     private fun createAdminClient(connection: Connection): AdminClient {
-        val props = Properties()
-        props[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = connection.getConnectionString()
+        val props = KafkaClientProps.base(connection)
         props[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
         props[AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 5000
-
-        if (connection.sslEnabled) {
-            props[AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SSL"
-        }
-
-        if (connection.saslEnabled && connection.username != null) {
-            props[AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SASL_PLAINTEXT"
-            props["sasl.mechanism"] = "PLAIN"
-            props["sasl.jaas.config"] = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${connection.username}\" password=\"${connection.password}\";"
-        }
 
         return AdminClient.create(props)
     }
