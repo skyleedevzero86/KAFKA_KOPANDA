@@ -9,5 +9,5 @@ data class ConsumerMemberMetricsDto(
     val assignedPartitions: Int,
     val totalLag: Long,
     val averageLag: Double,
-    val lastHeartbeat: LocalDateTime
+    val lastHeartbeat: LocalDateTime?
 )

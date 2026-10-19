@@ -6,6 +6,7 @@ import com.sleekydz86.kopanda.domain.valueobjects.names.ConnectionName
 import com.sleekydz86.kopanda.domain.valueobjects.network.Host
 import com.sleekydz86.kopanda.domain.valueobjects.network.Port
 import com.sleekydz86.kopanda.domain.valueobjects.*
+import com.sleekydz86.kopanda.infrastructure.persistence.crypto.PasswordCryptoConverter
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
@@ -35,6 +36,7 @@ class ConnectionEntity(
     val username: String? = null,
 
     @Column(name = "password", length = 255)
+    @Convert(converter = PasswordCryptoConverter::class)
     val password: String? = null,
 
     @Column(name = "created_at", nullable = false)

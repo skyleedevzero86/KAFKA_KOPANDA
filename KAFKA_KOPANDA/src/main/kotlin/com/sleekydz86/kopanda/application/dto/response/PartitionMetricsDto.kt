@@ -7,5 +7,5 @@ data class PartitionMetricsDto(
     val offlinePartitions: Int,
     val averageReplicationFactor: Double,
     val totalMessages: Long,
-    val averageMessagesPerPartition: Double
+    val averageMessagesPerPartition: Double?
 )

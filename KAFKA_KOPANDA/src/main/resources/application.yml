@@ -25,10 +25,6 @@ spring:
     name: kafka-kopanda
 
   datasource:
-    url: jdbc:h2:file:./data/kopanda;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL;DATABASE_TO_UPPER=false;INIT=CREATE SCHEMA IF NOT EXISTS PUBLIC
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
@@ -36,18 +32,9 @@ spring:
       idle-timeout: 300000
       max-lifetime: 1200000
 
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-      settings:
-        web-allow-others: true
-        trace: false
-
   jpa:
     open-in-view: true
     hibernate:
-      ddl-auto: update
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
         implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
@@ -76,6 +63,9 @@ spring:
 
   profiles:
     active: dev
+    group:
+      dev:
+        - local
 
 springdoc:
   api-docs:
@@ -107,6 +97,7 @@ logging:
     com.sleekydz86.kopanda: INFO
     org.hibernate.SQL: WARN
     org.hibernate.tool.schema: WARN
+    org.hibernate.tool.schema.internal.ExceptionHandlerLoggedImpl: ERROR
     org.springframework.orm.jpa: WARN
     org.springframework.transaction: WARN
     org.springframework.data.repository.config: WARN
@@ -174,3 +165,7 @@ alerts:
       offline-partitions:
         warning: 0
         critical: 1
+
+kopanda:
+  crypto:
+    key: ${KOPANDA_CRYPTO_KEY:}

@@ -59,12 +59,13 @@ class AlertService(
             val topics = kafkaManagementUseCase.getTopics(connectionId)
 
             topics.forEach { topic ->
-                if (topic.partitionCount < 3) {
+                val health = kafkaManagementUseCase.getTopicHealth(connectionId, topic.name)
+                if (health.underReplicatedPartitions > 0) {
                     createAlert(
                         type = DomainIssueType.UNDER_REPLICATED,
                         severity = DomainIssueSeverity.MEDIUM,
                         title = "복제 부족 파티션 감지",
-                        message = "토픽 '${topic.name}'에 복제 부족 파티션이 있습니다. 파티션 수: ${topic.partitionCount}",
+                        message = "토픽 '${topic.name}'에 복제 부족 파티션이 ${health.underReplicatedPartitions}개 있습니다.",
                         connectionId = connectionId,
                         topicName = topic.name
                     )

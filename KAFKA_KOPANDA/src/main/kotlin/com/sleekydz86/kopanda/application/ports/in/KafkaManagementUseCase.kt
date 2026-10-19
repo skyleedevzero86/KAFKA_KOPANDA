@@ -36,6 +36,6 @@ interface KafkaManagementUseCase {
     suspend fun getPerformanceMetrics(connectionId: String): PerformanceMetricsDto
     suspend fun getPartitionDetails(connectionId: String, topicName: String, partitionNumber: Int): PartitionDetailDto
     suspend fun getOffsetInfo(connectionId: String, topicName: String, partitionNumber: Int): OffsetInfoDto
-    suspend fun setOffset(connectionId: String, topicName: String, partitionNumber: Int, offset: Long): Boolean
+    suspend fun setOffset(connectionId: String, topicName: String, partitionNumber: Int, groupId: String, offset: Long): Boolean
     suspend fun getClusterInfo(connectionId: String): ClusterInfoDto
 }

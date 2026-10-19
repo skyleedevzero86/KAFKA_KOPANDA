@@ -6,12 +6,15 @@ import com.sleekydz86.kopanda.application.dto.response.BrokerMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.ClusterInfoDto
 import com.sleekydz86.kopanda.application.dto.response.ConsumerGroupDto
 import com.sleekydz86.kopanda.application.dto.response.ConsumerGroupMetricsDto
+import com.sleekydz86.kopanda.application.dto.response.ConsumerMemberMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.DetailedMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.KafkaMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.OffsetInfoDto
+import com.sleekydz86.kopanda.application.dto.response.PartitionLagDto
 import com.sleekydz86.kopanda.application.dto.response.PartitionMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.PerformanceMetricsDto
 import com.sleekydz86.kopanda.application.dto.response.TopicHealthDto
+import com.sleekydz86.kopanda.application.dto.response.TopicIssueDto
 import com.sleekydz86.kopanda.application.dto.response.TopicMetricsDto
 import com.sleekydz86.kopanda.application.ports.out.KafkaRepository
 import com.sleekydz86.kopanda.domain.entities.Connection
@@ -22,47 +25,67 @@ import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
 import com.sleekydz86.kopanda.domain.valueobjects.ids.BrokerId
+import com.sleekydz86.kopanda.domain.valueobjects.common.IssueSeverity
+import com.sleekydz86.kopanda.domain.valueobjects.common.IssueType
 import com.sleekydz86.kopanda.domain.valueobjects.topic.TopicConfig
+import com.sleekydz86.kopanda.shared.domain.OffsetChangeConflictException
 import com.sleekydz86.kopanda.domain.valueobjects.message.MessageKey
 import com.sleekydz86.kopanda.domain.valueobjects.message.MessageValue
 import com.sleekydz86.kopanda.domain.valueobjects.message.Timestamp
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
+import org.apache.kafka.clients.admin.ListTopicsOptions
 import org.apache.kafka.clients.admin.NewTopic
+import org.apache.kafka.clients.admin.OffsetSpec
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.ConsumerGroupState
+import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.Node
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.TopicPartitionInfo
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
+import org.apache.kafka.common.errors.GroupSubscribedToTopicException
+import org.apache.kafka.common.errors.UnknownMemberIdException
 import org.apache.kafka.common.errors.UnsupportedVersionException
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Repository
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
+import java.util.concurrent.ExecutionException
+import java.util.logging.Level
 import java.util.logging.Logger
 
 @Repository
-class KafkaRepositoryImpl : KafkaRepository {
-    
+class KafkaRepositoryImpl @Autowired constructor(
+    private val adminClients: AdminClientRegistry
+) : KafkaRepository {
+
+    constructor() : this(AdminClientRegistry())
+
     private val logger = Logger.getLogger(KafkaRepositoryImpl::class.java.name)
 
     override suspend fun getTopics(connection: Connection): List<Topic> {
-        val adminClient = createAdminClient(connection)
+        val adminClient = adminClients.get(connection)
         return try {
             val topicList = adminClient.listTopics().names().get()
-            
-            topicList.mapNotNull { topicName ->
+            val topicFailures = mutableListOf<Throwable>()
+
+            val topics = topicList.mapNotNull { topicName ->
                 try {
                     val topicDetails = adminClient.describeTopics(listOf(topicName)).all().get()[topicName]
                     val partitions = topicDetails?.partitions()?.let { toPartitions(it) } ?: emptyList()
 
                     toTopic(topicName, partitions)
                 } catch (e: Exception) {
+                    topicFailures.add(e)
                     val cause = generateSequence<Throwable>(e) { it.cause }
                         .firstOrNull { it is UnsupportedVersionException }
                     if (cause != null) {
@@ -79,7 +102,11 @@ class KafkaRepositoryImpl : KafkaRepository {
                     }
                 }
             }
+            fillOffsets(connection, adminClient, topics)
+            topicFailures.forEach { adminClients.evictOnConnectionFailure(connection.getId().value, it) }
+            topics
         } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
             when (e) {
                 is UnsupportedVersionException -> {
                     logger.severe("Kafka 버전 호환성 문제로 토픽 목록을 가져올 수 없습니다: ${e.message}")
@@ -89,19 +116,20 @@ class KafkaRepositoryImpl : KafkaRepository {
                 }
             }
             emptyList()
-        } finally {
-            adminClient.close()
         }
     }
 
     override suspend fun getTopicDetails(connection: Connection, topicName: TopicName): Topic? {
-        val adminClient = createAdminClient(connection)
+        val adminClient = adminClients.get(connection)
         return try {
             val topicDetails = adminClient.describeTopics(listOf(topicName.value)).all().get()[topicName.value]
             if (topicDetails == null) return null
 
-            toTopic(topicName.value, toPartitions(topicDetails.partitions()))
+            val topic = toTopic(topicName.value, toPartitions(topicDetails.partitions()))
+            fillOffsets(connection, adminClient, listOf(topic))
+            topic
         } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
             logger.warning("토픽 상세 정보 조회 실패: ${topicName.value} - ${e.message}")
             try {
                 toTopic(topicName.value, emptyList(), fallback = true)
@@ -109,14 +137,12 @@ class KafkaRepositoryImpl : KafkaRepository {
                 logger.warning("토픽 상세 정보를 만들 수 없습니다: ${topicName.value} - ${buildError.message}")
                 null
             }
-        } finally {
-            adminClient.close()
         }
     }
 
     override suspend fun createTopic(connection: Connection, topic: Topic): Topic {
-        val adminClient = createAdminClient(connection)
-        return try {
+        val adminClient = adminClients.get(connection)
+        try {
             val newTopic = NewTopic(
                 topic.name.value,
                 topic.config.partitionCount,
@@ -124,18 +150,20 @@ class KafkaRepositoryImpl : KafkaRepository {
             ).configs(topic.config.config)
 
             adminClient.createTopics(listOf(newTopic)).all().get()
-            topic
-        } finally {
-            adminClient.close()
+            return topic
+        } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
+            throw e
         }
     }
 
     override suspend fun deleteTopic(connection: Connection, topicName: TopicName) {
-        val adminClient = createAdminClient(connection)
+        val adminClient = adminClients.get(connection)
         try {
             adminClient.deleteTopics(listOf(topicName.value)).all().get()
-        } finally {
-            adminClient.close()
+        } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
+            throw e
         }
     }
 
@@ -151,17 +179,25 @@ class KafkaRepositoryImpl : KafkaRepository {
             val topicPartition = TopicPartition(topic.name.value, partition.partitionNumber.value)
             consumer.assign(listOf(topicPartition))
             consumer.seek(topicPartition, offset.value)
-
-            val records = consumer.poll(Duration.ofSeconds(5))
-            records.records(topicPartition).take(limit).map { record ->
-                Message.create(
-                    offset = record.offset(),
-                    key = record.key(),
-                    value = record.value() ?: "",
-                    timestamp = record.timestamp(),
-                    partitionNumber = record.partition(),
-                    headers = emptyMap()
-                )
+            val endOffset = consumer.endOffsets(listOf(topicPartition)).getValue(topicPartition)
+            if (offset.value >= endOffset) {
+                emptyList()
+            } else {
+                val messages = mutableListOf<Message>()
+                val deadline = System.currentTimeMillis() + 10_000
+                while (messages.size < limit &&
+                    consumer.position(topicPartition) < endOffset &&
+                    System.currentTimeMillis() < deadline
+                ) {
+                    val records = consumer.poll(Duration.ofMillis(500))
+                    for (record in records.records(topicPartition)) {
+                        if (messages.size >= limit) {
+                            break
+                        }
+                        messages.add(toFetchedMessage(record))
+                    }
+                }
+                messages
             }
         } finally {
             consumer.close()
@@ -202,23 +238,26 @@ class KafkaRepositoryImpl : KafkaRepository {
             } else {
                 consumer.seekToBeginning(listOf(topicPartition))
             }
+            val endOffset = consumer.endOffsets(listOf(topicPartition)).getValue(topicPartition)
+            if (consumer.position(topicPartition) >= endOffset) {
+                return emptyList()
+            }
 
             val messages = mutableListOf<Message>()
-            val records = consumer.poll(Duration.ofSeconds(5))
-
-            records.records(topicPartition).take(criteria.limit).forEach { record ->
-                val message = Message.create(
-                    offset = record.offset(),
-                    key = record.key(),
-                    value = record.value() ?: "",
-                    timestamp = record.timestamp(),
-                    partitionNumber = record.partition(),
-                    headers = emptyMap()
-                )
-
-                if (criteria.key == null || record.key()?.contains(criteria.key) == true) {
-                    if (criteria.value == null || record.value()?.contains(criteria.value) == true) {
-                        messages.add(message)
+            val deadline = System.currentTimeMillis() + 10_000
+            while (messages.size < criteria.limit &&
+                consumer.position(topicPartition) < endOffset &&
+                System.currentTimeMillis() < deadline
+            ) {
+                val records = consumer.poll(Duration.ofMillis(500))
+                for (record in records.records(topicPartition)) {
+                    if (messages.size >= criteria.limit) {
+                        break
+                    }
+                    val keyMatched = criteria.key == null || record.key()?.contains(criteria.key) == true
+                    val valueMatched = criteria.value == null || record.value()?.contains(criteria.value) == true
+                    if (keyMatched && valueMatched) {
+                        messages.add(toFetchedMessage(record))
                     }
                 }
             }
@@ -229,8 +268,19 @@ class KafkaRepositoryImpl : KafkaRepository {
         }
     }
 
+    private fun toFetchedMessage(record: ConsumerRecord<String, String>): Message {
+        return Message.create(
+            offset = record.offset(),
+            key = record.key(),
+            value = record.value() ?: "",
+            timestamp = record.timestamp(),
+            partitionNumber = record.partition(),
+            headers = emptyMap()
+        )
+    }
+
     override suspend fun getConsumerGroups(connection: Connection): List<ConsumerGroupDto> {
-        val adminClient = createAdminClient(connection)
+        val adminClient = adminClients.get(connection)
         return try {
             val consumerGroups = adminClient.listConsumerGroups().all().get()
 
@@ -255,32 +305,35 @@ class KafkaRepositoryImpl : KafkaRepository {
                     offsets = emptyMap()
                 )
             }
-        } finally {
-            adminClient.close()
+        } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
+            throw e
         }
     }
 
     override suspend fun getMetrics(connection: Connection): KafkaMetricsDto {
+        val snapshot = snapshot(connection)
         return KafkaMetricsDto(
-            brokerCount = 1,
-            topicCount = 0,
-            totalPartitions = 0,
-            messagesPerSecond = 0.0,
-            bytesInPerSec = 0.0,
-            bytesOutPerSec = 0.0,
+            brokerCount = snapshot.brokers,
+            topicCount = snapshot.topics,
+            totalPartitions = snapshot.partitions,
+            messagesPerSecond = null,
+            bytesInPerSec = null,
+            bytesOutPerSec = null,
             activeConnections = 0,
             timestamp = LocalDateTime.now()
         )
     }
 
     override suspend fun testConnection(connection: Connection): Boolean {
+        val adminClient = createAdminClient(connection)
         return try {
-            val adminClient = createAdminClient(connection)
             adminClient.listTopics().names().get()
-            adminClient.close()
             true
         } catch (e: Exception) {
             false
+        } finally {
+            adminClient.close()
         }
     }
 
@@ -329,42 +382,32 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getTopicHealth(connection: Connection, topicName: TopicName): TopicHealthDto {
-        return TopicHealthDto(
-            topicName = topicName.value,
-            isHealthy = true,
-            healthScore = 100,
-            underReplicatedPartitions = 0,
-            offlinePartitions = 0,
-            totalPartitions = 0,
-            replicationFactor = 1,
-            averageReplicationFactor = 1.0,
-            lastUpdated = LocalDateTime.now(),
-            issues = emptyList()
-        )
+        return withAdmin(connection) { adminClient ->
+            topicHealth(adminClient, topicName.value)
+        }
     }
 
     override suspend fun getAllTopicsHealth(connection: Connection): List<TopicHealthDto> {
-        return emptyList()
+        return withAdmin(connection) { adminClient ->
+            val listings = adminClient.listTopics(ListTopicsOptions().listInternal(true)).listings().get()
+            listings.filter { !it.isInternal }.map { listing ->
+                topicHealth(adminClient, listing.name())
+            }
+        }
     }
 
     override suspend fun getConsumerGroupMetrics(connection: Connection, groupId: String): ConsumerGroupMetricsDto {
-        return ConsumerGroupMetricsDto(
-            groupId = groupId,
-            state = "Empty",
-            memberCount = 0,
-            topicCount = 0,
-            totalLag = 0L,
-            averageLag = 0.0,
-            maxLag = 0L,
-            minLag = 0L,
-            lastCommitTime = null,
-            partitions = emptyList(),
-            members = emptyList()
-        )
+        return withAdmin(connection) { adminClient ->
+            consumerGroupMetrics(adminClient, groupId)
+        }
     }
 
     override suspend fun getAllConsumerGroupMetrics(connection: Connection): List<ConsumerGroupMetricsDto> {
-        return emptyList()
+        return withAdmin(connection) { adminClient ->
+            adminClient.listConsumerGroups().all().get().map { group ->
+                consumerGroupMetrics(adminClient, group.groupId())
+            }
+        }
     }
 
     override suspend fun getPerformanceMetrics(connection: Connection): PerformanceMetricsDto {
@@ -381,55 +424,101 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getPartitionDetails(connection: Connection, topicName: TopicName, partitionNumber: Int): PartitionDetailDto {
-        return PartitionDetailDto(
-            topicName = topicName.value,
-            partitionNumber = partitionNumber,
-            leader = 0,
-            replicas = emptyList(),
-            inSyncReplicas = emptyList(),
-            earliestOffset = 0L,
-            latestOffset = 0L,
-            messageCount = 0L,
-            isHealthy = true,
-            isUnderReplicated = false,
-            lastUpdated = LocalDateTime.now()
-        )
+        return withAdmin(connection) { adminClient ->
+            val partitionInfo = partitionInfo(adminClient, topicName.value, partitionNumber)
+            val offsets = readOffsets(adminClient, listOf(TopicPartition(topicName.value, partitionNumber)))
+            val offset = offsets.getValue(TopicPartition(topicName.value, partitionNumber))
+            val replicas = brokerIds(partitionInfo.replicas()).map { it.value }
+            val inSyncReplicas = brokerIds(partitionInfo.isr()).map { it.value }
+            val leader = partitionInfo.leader()?.takeIf { !it.isEmpty && it.id() >= 0 }
+            val underReplicated = partitionInfo.isr().size < partitionInfo.replicas().size
+            val earliest = offset.earliest
+            val latest = offset.latest
+            PartitionDetailDto(
+                topicName = topicName.value,
+                partitionNumber = partitionNumber,
+                leader = leader?.id() ?: -1,
+                replicas = replicas,
+                inSyncReplicas = inSyncReplicas,
+                earliestOffset = earliest,
+                latestOffset = latest,
+                messageCount = (latest - earliest).coerceAtLeast(0),
+                isHealthy = leader != null && !underReplicated,
+                isUnderReplicated = underReplicated,
+                lastUpdated = LocalDateTime.now()
+            )
+        }
     }
 
     override suspend fun getOffsetInfo(connection: Connection, topicName: TopicName, partitionNumber: Int): OffsetInfoDto {
-        return OffsetInfoDto(
-            topicName = topicName.value,
-            partitionNumber = partitionNumber,
-            currentOffset = 0L,
-            committedOffset = 0L,
-            endOffset = 0L,
-            lag = 0L,
-            consumerGroup = null,
-            lastCommitTime = null
-        )
+        return withAdmin(connection) { adminClient ->
+            partitionInfo(adminClient, topicName.value, partitionNumber)
+            val offsets = readOffsets(adminClient, listOf(TopicPartition(topicName.value, partitionNumber)))
+            val offset = offsets.getValue(TopicPartition(topicName.value, partitionNumber))
+            OffsetInfoDto(
+                topicName = topicName.value,
+                partitionNumber = partitionNumber,
+                currentOffset = offset.earliest,
+                committedOffset = null,
+                endOffset = offset.latest,
+                lag = null,
+                consumerGroup = null,
+                lastCommitTime = null
+            )
+        }
     }
 
-    override suspend fun setOffset(connection: Connection, topicName: TopicName, partitionNumber: Int, offset: Long): Boolean {
-        return true
+    override suspend fun setOffset(
+        connection: Connection,
+        topicName: TopicName,
+        partitionNumber: Int,
+        groupId: String,
+        offset: Long
+    ): Boolean {
+        return withAdmin(connection) { adminClient ->
+            partitionInfo(adminClient, topicName.value, partitionNumber)
+            val topicPartition = TopicPartition(topicName.value, partitionNumber)
+            val range = readOffsets(adminClient, listOf(topicPartition)).getValue(topicPartition)
+            if (offset < range.earliest || offset > range.latest) {
+                throw IllegalArgumentException("오프셋이 허용 범위를 벗어났습니다: $offset")
+            }
+            try {
+                adminClient.alterConsumerGroupOffsets(
+                    groupId,
+                    mapOf(topicPartition to OffsetAndMetadata(offset))
+                ).all().get()
+            } catch (e: ExecutionException) {
+                if (generateSequence(e as Throwable) { it.cause }.any {
+                        it is UnknownMemberIdException || it is GroupSubscribedToTopicException
+                    }
+                ) {
+                    throw OffsetChangeConflictException("컨슈머 그룹에 실행 중인 소비자가 있어 오프셋을 바꿀 수 없습니다")
+                }
+                throw e
+            }
+            true
+        }
     }
 
     override suspend fun getClusterInfo(connection: Connection): ClusterInfoDto {
+        val snapshot = snapshot(connection)
         return ClusterInfoDto(
-            clusterId = "test-cluster",
-            controllerId = 0,
-            totalBrokers = 1,
-            activeBrokers = 1,
-            totalTopics = 0,
-            totalPartitions = 0,
-            version = "2.8.0",
+            clusterId = snapshot.clusterId,
+            controllerId = snapshot.controllerId,
+            totalBrokers = snapshot.brokers,
+            activeBrokers = snapshot.brokers,
+            totalTopics = snapshot.topics,
+            totalPartitions = snapshot.partitions,
+            version = null,
             lastUpdated = LocalDateTime.now()
         )
     }
 
     override suspend fun getBrokerMetrics(connection: Connection): BrokerMetricsDto {
+        val snapshot = snapshot(connection)
         return BrokerMetricsDto(
-            totalBrokers = 1,
-            activeBrokers = 1,
+            totalBrokers = snapshot.brokers,
+            activeBrokers = snapshot.brokers,
             offlineBrokers = 0,
             averageResponseTime = 0L,
             totalDiskUsage = 0L,
@@ -438,27 +527,29 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getTopicMetrics(connection: Connection): TopicMetricsDto {
+        val snapshot = snapshot(connection)
         return TopicMetricsDto(
-            totalTopics = 0,
-            internalTopics = 0,
-            userTopics = 0,
-            totalPartitions = 0,
-            underReplicatedPartitions = 0,
-            offlinePartitions = 0,
+            totalTopics = snapshot.topics,
+            internalTopics = snapshot.internalTopics,
+            userTopics = snapshot.topics,
+            totalPartitions = snapshot.partitions,
+            underReplicatedPartitions = snapshot.underReplicated,
+            offlinePartitions = snapshot.offline,
             totalMessages = 0L,
-            messagesPerSecond = 0.0
+            messagesPerSecond = null
         )
     }
 
     override suspend fun getPartitionMetrics(connection: Connection): PartitionMetricsDto {
+        val snapshot = snapshot(connection)
         return PartitionMetricsDto(
-            totalPartitions = 0,
-            healthyPartitions = 0,
-            underReplicatedPartitions = 0,
-            offlinePartitions = 0,
-            averageReplicationFactor = 0.0,
+            totalPartitions = snapshot.partitions,
+            healthyPartitions = snapshot.healthyPartitions,
+            underReplicatedPartitions = snapshot.underReplicated,
+            offlinePartitions = snapshot.offline,
+            averageReplicationFactor = snapshot.averageReplicationFactor,
             totalMessages = 0L,
-            averageMessagesPerPartition = 0.0
+            averageMessagesPerPartition = null
         )
     }
 
@@ -471,6 +562,162 @@ class KafkaRepositoryImpl : KafkaRepository {
             offsets = emptyMap()
         )
     }
+
+    private fun topicHealth(adminClient: AdminClient, topicName: String): TopicHealthDto {
+        val description = adminClient.describeTopics(listOf(topicName)).allTopicNames().get()[topicName]
+            ?: throw KafkaException("토픽을 찾을 수 없습니다: $topicName")
+        val partitions = description.partitions()
+        var underReplicated = 0
+        var offline = 0
+        var healthy = 0
+        partitions.forEach { info ->
+            val leader = info.leader()
+            val hasLeader = leader != null && !leader.isEmpty && leader.id() >= 0
+            val missingReplicas = info.isr().size < info.replicas().size
+            if (!hasLeader) {
+                offline += 1
+            }
+            if (missingReplicas) {
+                underReplicated += 1
+            }
+            if (hasLeader && !missingReplicas) {
+                healthy += 1
+            }
+        }
+        val total = partitions.size
+        val replicaSizes = partitions.map { it.replicas().size }
+        val issues = mutableListOf<TopicIssueDto>()
+        if (underReplicated > 0) {
+            issues += TopicIssueDto(
+                type = IssueType.UNDER_REPLICATED,
+                severity = IssueSeverity.MEDIUM,
+                description = "복제 부족 파티션이 ${underReplicated}개 있습니다."
+            )
+        }
+        if (offline > 0) {
+            issues += TopicIssueDto(
+                type = IssueType.OFFLINE_PARTITION,
+                severity = IssueSeverity.HIGH,
+                description = "리더가 없는 파티션이 ${offline}개 있습니다."
+            )
+        }
+        return TopicHealthDto(
+            topicName = topicName,
+            isHealthy = underReplicated == 0 && offline == 0,
+            healthScore = if (total == 0) 0 else healthy * 100 / total,
+            underReplicatedPartitions = underReplicated,
+            offlinePartitions = offline,
+            totalPartitions = total,
+            replicationFactor = replicaSizes.maxOrNull() ?: 0,
+            averageReplicationFactor = if (replicaSizes.isEmpty()) 0.0 else replicaSizes.average(),
+            lastUpdated = LocalDateTime.now(),
+            issues = issues
+        )
+    }
+
+    private fun partitionInfo(adminClient: AdminClient, topicName: String, partitionNumber: Int): TopicPartitionInfo {
+        val description = adminClient.describeTopics(listOf(topicName)).allTopicNames().get()[topicName]
+            ?: throw KafkaException("토픽을 찾을 수 없습니다: $topicName")
+        return description.partitions().find { it.partition() == partitionNumber }
+            ?: throw KafkaException("파티션을 찾을 수 없습니다: $topicName-$partitionNumber")
+    }
+
+    private fun consumerGroupMetrics(adminClient: AdminClient, groupId: String): ConsumerGroupMetricsDto {
+        val description = adminClient.describeConsumerGroups(listOf(groupId)).all().get()[groupId]
+            ?: throw KafkaException("컨슈머 그룹을 찾을 수 없습니다: $groupId")
+        val committed = adminClient.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata(groupId).get()
+        if (description.state() == ConsumerGroupState.DEAD && description.members().isEmpty() && committed.isEmpty()) {
+            throw KafkaException("컨슈머 그룹을 찾을 수 없습니다: $groupId")
+        }
+        val latest = readOffsets(adminClient, committed.keys.toList())
+        val memberByPartition = description.members().flatMap { member ->
+            member.assignment().topicPartitions().map { topicPartition -> topicPartition to member.consumerId() }
+        }.toMap()
+        val partitions = committed.map { (topicPartition, metadata) ->
+            val endOffset = latest[topicPartition]?.latest
+                ?: throw KafkaException("최신 오프셋을 가져오지 못했습니다: ${topicPartition.topic()}-${topicPartition.partition()}")
+            val committedOffset = metadata.offset()
+            PartitionLagDto(
+                topic = topicPartition.topic(),
+                partition = topicPartition.partition(),
+                currentOffset = committedOffset,
+                committedOffset = committedOffset,
+                endOffset = endOffset,
+                lag = (endOffset - committedOffset).coerceAtLeast(0),
+                consumerId = memberByPartition[topicPartition]
+            )
+        }
+        val lags = partitions.map { it.lag }
+        val members = description.members().map { member ->
+            val assigned = member.assignment().topicPartitions()
+            val memberLags = partitions.filter { lag ->
+                assigned.any { it.topic() == lag.topic && it.partition() == lag.partition }
+            }.map { it.lag }
+            ConsumerMemberMetricsDto(
+                memberId = member.consumerId(),
+                clientId = member.clientId(),
+                clientHost = member.host(),
+                assignedPartitions = assigned.size,
+                totalLag = memberLags.sum(),
+                averageLag = if (memberLags.isEmpty()) 0.0 else memberLags.average(),
+                lastHeartbeat = null
+            )
+        }
+        return ConsumerGroupMetricsDto(
+            groupId = groupId,
+            state = description.state().toString(),
+            memberCount = description.members().size,
+            topicCount = committed.keys.map { it.topic() }.distinct().size,
+            totalLag = lags.sum(),
+            averageLag = if (lags.isEmpty()) 0.0 else lags.average(),
+            maxLag = lags.maxOrNull() ?: 0L,
+            minLag = lags.minOrNull() ?: 0L,
+            lastCommitTime = null,
+            partitions = partitions,
+            members = members
+        )
+    }
+
+    private fun fillOffsets(connection: Connection, adminClient: AdminClient, topics: List<Topic>) {
+        val indexed = topics.flatMap { topic ->
+            topic.partitions.map { partition ->
+                TopicPartition(topic.name.value, partition.partitionNumber.value) to partition
+            }
+        }
+        if (indexed.isEmpty()) {
+            return
+        }
+        try {
+            val offsets = readOffsets(adminClient, indexed.map { it.first })
+            indexed.forEach { (topicPartition, partition) ->
+                val offset = offsets[topicPartition] ?: return@forEach
+                partition.updateOffsetRange(offset.earliest, offset.latest)
+                partition.updateMessageCount((offset.latest - offset.earliest).coerceAtLeast(0))
+            }
+        } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
+            logger.log(Level.WARNING, "오프셋 조회에 실패했습니다", e)
+        }
+    }
+
+    private fun readOffsets(adminClient: AdminClient, partitions: List<TopicPartition>): Map<TopicPartition, OffsetPair> {
+        if (partitions.isEmpty()) {
+            return emptyMap()
+        }
+        val earliest = adminClient.listOffsets(partitions.associateWith { OffsetSpec.earliest() }).all().get()
+        val latest = adminClient.listOffsets(partitions.associateWith { OffsetSpec.latest() }).all().get()
+        return partitions.associateWith { topicPartition ->
+            OffsetPair(
+                earliest = earliest.getValue(topicPartition).offset(),
+                latest = latest.getValue(topicPartition).offset()
+            )
+        }
+    }
+
+    private data class OffsetPair(
+        val earliest: Long,
+        val latest: Long
+    )
 
     private fun toPartitions(
         partitionInfos: List<TopicPartitionInfo>
@@ -514,9 +761,73 @@ class KafkaRepositoryImpl : KafkaRepository {
         }
     }
 
+    private data class ClusterSnapshot(
+        val clusterId: String,
+        val controllerId: Int,
+        val brokers: Int,
+        val topics: Int,
+        val internalTopics: Int,
+        val partitions: Int,
+        val underReplicated: Int,
+        val offline: Int,
+        val healthyPartitions: Int,
+        val averageReplicationFactor: Double
+    )
+
+    private fun snapshot(connection: Connection): ClusterSnapshot =
+        withAdmin(connection) { admin ->
+            val described = admin.describeCluster()
+            val clusterId = described.clusterId().get()
+                ?: throw KafkaException("클러스터 ID를 가져오지 못했습니다")
+            val controllerId = described.controller().get()?.id()?.takeIf { it >= 0 } ?: -1
+            val brokers = described.nodes().get().size
+            val listings = admin.listTopics(ListTopicsOptions().listInternal(true)).listings().get()
+            val userNames = listings.filter { !it.isInternal }.map { it.name() }
+            val descriptions = if (userNames.isEmpty()) {
+                emptyMap()
+            } else {
+                admin.describeTopics(userNames).allTopicNames().get()
+            }
+            val parts = descriptions.values.flatMap { it.partitions() }
+            val underReplicated = parts.count { it.isr().size < it.replicas().size }
+            val offline = parts.count { part ->
+                val leader = part.leader()
+                leader == null || leader.isEmpty
+            }
+            val healthyPartitions = parts.count { part ->
+                val leader = part.leader()
+                leader != null && !leader.isEmpty && part.isr().size >= part.replicas().size
+            }
+            val averageReplicationFactor = if (parts.isEmpty()) {
+                0.0
+            } else {
+                parts.map { it.replicas().size }.average()
+            }
+            ClusterSnapshot(
+                clusterId = clusterId,
+                controllerId = controllerId,
+                brokers = brokers,
+                topics = userNames.size,
+                internalTopics = listings.count { it.isInternal },
+                partitions = parts.size,
+                underReplicated = underReplicated,
+                offline = offline,
+                healthyPartitions = healthyPartitions,
+                averageReplicationFactor = averageReplicationFactor
+            )
+        }
+
+    private fun <T> withAdmin(connection: Connection, block: (AdminClient) -> T): T {
+        try {
+            return block(adminClients.get(connection))
+        } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
+            throw e
+        }
+    }
+
     private fun createAdminClient(connection: Connection): AdminClient {
-        val config = Properties()
-        config[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
+        val config = KafkaClientProps.base(connection)
         config[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
         config[AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 10000
         
@@ -530,9 +841,8 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     private fun createConsumer(connection: Connection): KafkaConsumer<String, String> {
-        val config = Properties()
-        config[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
-        config[ConsumerConfig.GROUP_ID_CONFIG] = "kopanda-consumer"
+        val config = KafkaClientProps.base(connection)
+        config[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = false
         config[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
         config[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
         config[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
@@ -540,8 +850,7 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     private fun createProducer(connection: Connection): KafkaProducer<String, String> {
-        val config = Properties()
-        config[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
+        val config = KafkaClientProps.base(connection)
         config[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
         config[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
         return KafkaProducer(config)
