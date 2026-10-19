@@ -10,7 +10,6 @@ import io.restassured.RestAssured
 import io.restassured.http.ContentType
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.test.context.ActiveProfiles
@@ -28,7 +27,6 @@ import kotlin.test.assertTrue
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Testcontainers
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ConnectionAcceptanceTest {
 
     @LocalServerPort
@@ -45,12 +43,7 @@ class ConnectionAcceptanceTest {
         }
 
         @Container
-        val kafkaContainer = KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0")).apply {
-            withExposedPorts(9092)
-            withEnv("KAFKA_LISTENERS", "PLAINTEXT://0.0.0.0:9092")
-            withEnv("KAFKA_ADVERTISED_LISTENERS", "PLAINTEXT://localhost:9092")
-            withEnv("KAFKA_ZOOKEEPER_CONNECT", "localhost:2181")
-        }
+        val kafkaContainer = KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
 
         @JvmStatic
         @DynamicPropertySource
@@ -58,13 +51,14 @@ class ConnectionAcceptanceTest {
             registry.add("spring.datasource.url", postgresContainer::getJdbcUrl)
             registry.add("spring.datasource.username", postgresContainer::getUsername)
             registry.add("spring.datasource.password", postgresContainer::getPassword)
+            registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
             registry.add("kafka.bootstrap-servers", kafkaContainer::getBootstrapServers)
         }
     }
 
     @BeforeEach
     fun setUp() {
-        objectMapper = jacksonObjectMapper()
+        objectMapper = jacksonObjectMapper().findAndRegisterModules()
         RestAssured.port = port
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails()
     }
