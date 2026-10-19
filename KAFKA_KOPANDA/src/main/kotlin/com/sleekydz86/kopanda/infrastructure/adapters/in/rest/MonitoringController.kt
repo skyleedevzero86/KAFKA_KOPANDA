@@ -707,6 +707,15 @@ class MonitoringController(
         )
         @PathVariable partitionNumber: Int,
         @Parameter(
+            description = "오프셋을 바꿀 컨슈머 그룹 ID",
+            example = "billing",
+            schema = Schema(
+                type = "string",
+                minLength = 1
+            )
+        )
+        @RequestParam groupId: String,
+        @Parameter(
             description = "설정할 오프셋 값",
             example = "1000",
             schema = Schema(
@@ -716,10 +725,14 @@ class MonitoringController(
         )
         @RequestParam offset: Long
     ): ResponseEntity<Map<String, Any>> {
-        val success = kafkaManagementUseCase.setOffset(connectionId, topicName, partitionNumber, offset)
+        val success = kafkaManagementUseCase.setOffset(connectionId, topicName, partitionNumber, groupId, offset)
         return ResponseEntity.ok(mapOf(
             "success" to success,
-            "message" to if (success) "오프셋을 설정했습니다" else "오프셋 설정에 실패했습니다"
+            "message" to if (success) {
+                "오프셋을 설정했습니다: $groupId $topicName-$partitionNumber → $offset"
+            } else {
+                "오프셋 설정에 실패했습니다"
+            }
         ))
     }
 

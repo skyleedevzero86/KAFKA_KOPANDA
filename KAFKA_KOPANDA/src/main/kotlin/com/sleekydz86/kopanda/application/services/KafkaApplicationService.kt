@@ -50,6 +50,9 @@ import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
+import com.sleekydz86.kopanda.infrastructure.adapters.out.AdminClientRegistry
+import com.sleekydz86.kopanda.infrastructure.adapters.out.KafkaClientProps
+import com.sleekydz86.kopanda.infrastructure.persistence.crypto.ConnectionPasswordCrypto
 import com.sleekydz86.kopanda.shared.domain.DomainException
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -59,7 +62,6 @@ import java.time.LocalDateTime
 import org.slf4j.LoggerFactory
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import java.time.Duration
-import java.util.Properties
 
 
 @Service
@@ -68,7 +70,9 @@ class KafkaApplicationService(
     private val connectionRepository: ConnectionRepository,
     private val kafkaRepository: KafkaRepository,
     private val activityManagementUseCase: ActivityManagementUseCase,
-    private val connectionHistoryRepository: ConnectionHistoryRepository
+    private val connectionHistoryRepository: ConnectionHistoryRepository,
+    private val adminClients: AdminClientRegistry,
+    private val passwordCrypto: ConnectionPasswordCrypto
 ) : ConnectionManagementUseCase, KafkaManagementUseCase {
 
     private val logger = LoggerFactory.getLogger(KafkaApplicationService::class.java)
@@ -83,6 +87,7 @@ class KafkaApplicationService(
     }
 
     override suspend fun createConnection(request: CreateConnectionRequest): ConnectionDto {
+        passwordCrypto.requireStorable(request.password)
         logger.info("연결 생성 시작: ${request.name}")
 
         try {
@@ -133,6 +138,7 @@ class KafkaApplicationService(
     }
 
     override suspend fun updateConnection(id: String, request: UpdateConnectionRequest): ConnectionDto {
+        passwordCrypto.requireStorable(request.password)
         val connection = getConnectionOrThrow(id)
         connection.updateConnectionInfo(
             name = request.name,
@@ -144,6 +150,7 @@ class KafkaApplicationService(
             password = request.password
         )
         val updatedConnection = connectionRepository.save(connection)
+        adminClients.evict(id)
 
         val history = ConnectionHistory.create(
             connectionId = connection.getId(),
@@ -168,6 +175,7 @@ class KafkaApplicationService(
         val connection = getConnectionOrThrow(id)
         connection.delete()
         connectionRepository.delete(connection.getId())
+        adminClients.evict(id)
 
         val history = ConnectionHistory.create(
             connectionId = connection.getId(),
@@ -181,6 +189,7 @@ class KafkaApplicationService(
     }
 
     override suspend fun testConnection(request: CreateConnectionRequest): ConnectionTestResult {
+        passwordCrypto.requireStorable(request.password)
         val testConnection = Connection.create(
             name = request.name,
             host = request.host,
@@ -198,10 +207,9 @@ class KafkaApplicationService(
 
             if (isConnected) {
                 val adminClient = createAdminClient(testConnection)
-                val clusterDescription = adminClient.describeCluster().nodes().get()
-                adminClient.close()
-
-                ConnectionTestResult(
+                try {
+                    val clusterDescription = adminClient.describeCluster().nodes().get()
+                    ConnectionTestResult(
                     success = true,
                     message = "연결에 성공했습니다",
                     latency = latency,
@@ -210,6 +218,9 @@ class KafkaApplicationService(
                         versions = emptyList()
                     )
                 )
+                } finally {
+                    adminClient.close()
+                }
             } else {
                 ConnectionTestResult(
                     success = false,
@@ -236,10 +247,9 @@ class KafkaApplicationService(
                 connection.markAsConnected()
                 connectionRepository.save(connection)
 
-                val adminClient = createAdminClient(connection)
+                val adminClient = adminClients.get(connection)
                 val clusterDescription = adminClient.describeCluster().nodes().get()
                 val topicList = adminClient.listTopics().names().get()
-                adminClient.close()
 
                 val history = ConnectionHistory.create(
                     connectionId = connection.getId(),
@@ -272,6 +282,7 @@ class KafkaApplicationService(
                 )
             }
         } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(id, e)
             logger.error("Connection status check failed for ${connection.name.value}: ${e.message}", e)
 
             connection.markAsError(e.message)
@@ -512,9 +523,9 @@ class KafkaApplicationService(
         return kafkaRepository.getOffsetInfo(connection, TopicName(topicName), partitionNumber)
     }
 
-    override suspend fun setOffset(connectionId: String, topicName: String, partitionNumber: Int, offset: Long): Boolean {
+    override suspend fun setOffset(connectionId: String, topicName: String, partitionNumber: Int, groupId: String, offset: Long): Boolean {
         val connection = getConnectionOrThrow(connectionId)
-        return kafkaRepository.setOffset(connection, TopicName(topicName), partitionNumber, offset)
+        return kafkaRepository.setOffset(connection, TopicName(topicName), partitionNumber, groupId, offset)
     }
 
     override suspend fun getClusterInfo(connectionId: String): ClusterInfoDto {
@@ -699,20 +710,9 @@ class KafkaApplicationService(
     }
 
     private fun createAdminClient(connection: Connection): AdminClient {
-        val props = Properties()
-        props[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = connection.getConnectionString()
+        val props = KafkaClientProps.base(connection)
         props[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
         props[AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 5000
-
-        if (connection.sslEnabled) {
-            props[AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SSL"
-        }
-
-        if (connection.saslEnabled && connection.username != null) {
-            props[AdminClientConfig.SECURITY_PROTOCOL_CONFIG] = "SASL_PLAINTEXT"
-            props["sasl.mechanism"] = "PLAIN"
-            props["sasl.jaas.config"] = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${connection.username}\" password=\"${connection.password}\";"
-        }
 
         return AdminClient.create(props)
     }

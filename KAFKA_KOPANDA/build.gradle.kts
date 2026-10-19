@@ -37,7 +37,9 @@ dependencies {
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:1.7.3")
 	implementation("org.apache.kafka:kafka-clients:3.9.0")
-	implementation("io.confluent:kafka-avro-serializer:7.7.1")
+	implementation("io.confluent:kafka-avro-serializer:7.7.1") {
+		exclude(group = "io.swagger.core.v3", module = "swagger-annotations")
+	}
 	implementation("com.google.protobuf:protobuf-java:4.28.3")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("io.micrometer:micrometer-registry-prometheus")
@@ -73,9 +75,11 @@ dependencies {
 	testImplementation("org.jetbrains.kotlin:kotlin-test")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("com.fasterxml.jackson.core:jackson-databind")
-	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.4.0")
-	implementation("io.swagger.core.v3:swagger-annotations:2.2.20")
-	implementation("io.swagger.core.v3:swagger-models:2.2.20")
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
+}
+
+configurations.configureEach {
+	exclude(group = "io.swagger.core.v3", module = "swagger-annotations")
 }
 
 kotlin {

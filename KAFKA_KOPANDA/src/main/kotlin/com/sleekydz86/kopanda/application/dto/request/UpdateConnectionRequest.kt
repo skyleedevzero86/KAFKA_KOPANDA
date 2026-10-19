@@ -11,4 +11,8 @@ data class UpdateConnectionRequest(
     val saslEnabled: Boolean? = null,
     val username: String? = null,
     val password: String? = null
-)
+) {
+    override fun toString(): String {
+        return "UpdateConnectionRequest(name=$name, host=$host, port=$port, sslEnabled=$sslEnabled, saslEnabled=$saslEnabled, username=$username)"
+    }
+}

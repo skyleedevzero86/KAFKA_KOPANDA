@@ -8,5 +8,5 @@ data class TopicMetricsDto(
     val underReplicatedPartitions: Int,
     val offlinePartitions: Int,
     val totalMessages: Long,
-    val messagesPerSecond: Double
+    val messagesPerSecond: Double?
 )

@@ -67,23 +67,16 @@
         <el-col :span="6">
           <el-card class="overview-card">
             <div class="overview-item">
-              <div class="overview-value">{{ avgThroughput.toFixed(1) }}</div>
+              <div class="overview-value">—</div>
               <div class="overview-label">평균 처리량 (msg/s)</div>
+              <div class="overview-note">JMX 연동 예정</div>
             </div>
           </el-card>
         </el-col>
       </el-row>
 
       <el-row :gutter="20" class="charts-section">
-        <el-col :span="12">
-          <el-card>
-            <template #header>
-              <span>토픽별 처리량</span>
-            </template>
-            <BarChart :data="topicThroughputData" />
-          </el-card>
-        </el-col>
-        <el-col :span="12">
+        <el-col :span="24">
           <el-card>
             <template #header>
               <span>토픽 상태 분포</span>
@@ -113,44 +106,12 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="avgMessageSize" label="평균 메시지 크기" width="150">
-            <template #default="{ row }">
-              {{ formatBytes(row.avgMessageSize) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="messagesPerSecond" label="초당 메시지" width="120">
-            <template #default="{ row }">
-              {{ formatNumber(row.messagesPerSecond) }}
-            </template>
-          </el-table-column>
           <el-table-column prop="healthScore" label="헬스 점수" width="120">
             <template #default="{ row }">
               <el-progress 
                 :percentage="row.healthScore" 
                 :color="getHealthColor(row.healthScore)"
                 :stroke-width="8"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column label="트렌드" width="200">
-            <template #default="{ row }">
-              <LineChart 
-                :data="{
-                  labels: Array.from({ length: row.trendData.length }, (_, i) => `${i + 1}분 전`),
-                  datasets: [{
-                    label: '메시지 수',
-                    data: row.trendData,
-                    borderColor: '#409EFF',
-                    backgroundColor: 'rgba(64, 158, 255, 0.1)',
-                    tension: 0.4
-                  }]
-                }"
-                :options="{ 
-                  responsive: true, 
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                  scales: { y: { beginAtZero: true } }
-                }"
               />
             </template>
           </el-table-column>
@@ -208,15 +169,13 @@ import {
   View
 } from '@element-plus/icons-vue'
 import type { TopicDetailDto } from '@/types/topic'
-import BarChart from '@/components/charts/BarChart.vue'
 import PieChart from '@/components/charts/PieChart.vue'
-import LineChart from '@/components/charts/LineChart.vue'
 import TopicDetailView from './TopicDetailView.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import AlertList from '@/components/common/AlertList.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
-import { formatNumber, formatBytes } from '@/utils/formatters'
+import { formatNumber } from '@/utils/formatters'
 
 const topicStore = useTopicStore()
 const connectionStore = useConnectionStore()
@@ -234,18 +193,12 @@ interface MonitoringTopic {
   partitionCount: number
   messageCount: number
   isHealthy: boolean
-  avgMessageSize: number
-  messagesPerSecond: number
   healthScore: number
-  trendData: number[]
 }
 
 const monitoringTopics = ref<MonitoringTopic[]>([])
 
-
-const topicTrends = ref<Record<string, number[]>>({})
-
-let refreshTimer: NodeJS.Timeout | null = null
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   console.log('TopicMonitoring 컴포넌트 마운트됨')
@@ -284,23 +237,6 @@ const healthyTopics = computed(() =>
 const totalPartitions = computed(() => 
   monitoringTopics.value.reduce((sum, topic) => sum + topic.partitionCount, 0)
 )
-
-const avgThroughput = computed(() => {
-  if (monitoringTopics.value.length === 0) return 0
-  const total = monitoringTopics.value.reduce((sum, topic) => sum + topic.messagesPerSecond, 0)
-  return total / monitoringTopics.value.length
-})
-
-const topicThroughputData = computed(() => ({
-  labels: monitoringTopics.value.map(t => t.name),
-  datasets: [{
-    label: '초당 메시지',
-    data: monitoringTopics.value.map(t => t.messagesPerSecond),
-    backgroundColor: monitoringTopics.value.map(t => 
-      t.isHealthy ? '#67C23A' : '#F56C6C'
-    )
-  }]
-}))
 
 const topicStatusData = computed(() => {
   const healthy = monitoringTopics.value.filter(t => t.isHealthy).length
@@ -357,8 +293,6 @@ const refreshMonitoring = async () => {
     
     generateMonitoringData()
     
-    updateTopicTrends()
-    
     console.log('모니터링 데이터 생성 완료:', monitoringTopics.value.length)
     
   } catch (err: any) {
@@ -385,20 +319,11 @@ const generateMonitoringData = () => {
       partitionCount: topic.partitionCount,
       messageCount: topic.messageCount,
       isHealthy: topic.isHealthy,
-      avgMessageSize: Math.floor(Math.random() * 1000) + 100,
-      messagesPerSecond: Math.floor(Math.random() * 100) + 1,
-      healthScore: topic.isHealthy ? Math.floor(Math.random() * 30) + 70 : Math.floor(Math.random() * 50),
-      trendData: Array.from({ length: 10 }, () => Math.floor(Math.random() * 100) + 50)
+      healthScore: topic.isHealthy ? 100 : 0
     }
   }) as MonitoringTopic[]
   
   console.log('생성된 모니터링 데이터:', monitoringTopics.value.length)
-}
-
-const updateTopicTrends = () => {
-  monitoringTopics.value.forEach(topic => {
-    topicTrends.value[topic.name] = topic.trendData
-  })
 }
 
 const startAutoRefresh = () => {
@@ -528,6 +453,12 @@ const clearError = () => {
 .overview-label {
   font-size: 14px;
   color: #606266;
+}
+
+.overview-note {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
 }
 
 .charts-section {
