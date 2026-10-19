@@ -50,6 +50,7 @@ import com.sleekydz86.kopanda.domain.valueobjects.ids.ConnectionId
 import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
+import com.sleekydz86.kopanda.infrastructure.adapters.out.AdminClientRegistry
 import com.sleekydz86.kopanda.infrastructure.adapters.out.KafkaClientProps
 import com.sleekydz86.kopanda.shared.domain.DomainException
 import org.apache.kafka.clients.admin.AdminClient
@@ -68,7 +69,8 @@ class KafkaApplicationService(
     private val connectionRepository: ConnectionRepository,
     private val kafkaRepository: KafkaRepository,
     private val activityManagementUseCase: ActivityManagementUseCase,
-    private val connectionHistoryRepository: ConnectionHistoryRepository
+    private val connectionHistoryRepository: ConnectionHistoryRepository,
+    private val adminClients: AdminClientRegistry
 ) : ConnectionManagementUseCase, KafkaManagementUseCase {
 
     private val logger = LoggerFactory.getLogger(KafkaApplicationService::class.java)
@@ -144,6 +146,7 @@ class KafkaApplicationService(
             password = request.password
         )
         val updatedConnection = connectionRepository.save(connection)
+        adminClients.evict(id)
 
         val history = ConnectionHistory.create(
             connectionId = connection.getId(),
@@ -168,6 +171,7 @@ class KafkaApplicationService(
         val connection = getConnectionOrThrow(id)
         connection.delete()
         connectionRepository.delete(connection.getId())
+        adminClients.evict(id)
 
         val history = ConnectionHistory.create(
             connectionId = connection.getId(),
@@ -198,10 +202,9 @@ class KafkaApplicationService(
 
             if (isConnected) {
                 val adminClient = createAdminClient(testConnection)
-                val clusterDescription = adminClient.describeCluster().nodes().get()
-                adminClient.close()
-
-                ConnectionTestResult(
+                try {
+                    val clusterDescription = adminClient.describeCluster().nodes().get()
+                    ConnectionTestResult(
                     success = true,
                     message = "연결에 성공했습니다",
                     latency = latency,
@@ -210,6 +213,9 @@ class KafkaApplicationService(
                         versions = emptyList()
                     )
                 )
+                } finally {
+                    adminClient.close()
+                }
             } else {
                 ConnectionTestResult(
                     success = false,
@@ -236,10 +242,9 @@ class KafkaApplicationService(
                 connection.markAsConnected()
                 connectionRepository.save(connection)
 
-                val adminClient = createAdminClient(connection)
+                val adminClient = adminClients.get(connection)
                 val clusterDescription = adminClient.describeCluster().nodes().get()
                 val topicList = adminClient.listTopics().names().get()
-                adminClient.close()
 
                 val history = ConnectionHistory.create(
                     connectionId = connection.getId(),
@@ -272,6 +277,7 @@ class KafkaApplicationService(
                 )
             }
         } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(id, e)
             logger.error("Connection status check failed for ${connection.name.value}: ${e.message}", e)
 
             connection.markAsError(e.message)
