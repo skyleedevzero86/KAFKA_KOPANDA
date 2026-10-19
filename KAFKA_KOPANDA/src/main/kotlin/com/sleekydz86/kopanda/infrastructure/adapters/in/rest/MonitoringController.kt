@@ -20,7 +20,7 @@ import java.time.LocalDateTime
 @RequestMapping("/monitoring")
 @Tag(
     name = "Monitoring Management",
-    description = "Kafka 클러스터 및 연결 상태 모니터링을 위한 API 엔드포인트들입니다. 상세 메트릭, 토픽 헬스, 컨슈머 그룹 메트릭, 성능 지표, 파티션 정보, 오프셋 관리, 클러스터 정보, 연결 상태, 핑 테스트, 연결 히스토리, 대시보드 데이터 등을 제공합니다."
+    description = "Kafka 클러스터 및 연결 상태 모니터링을 위한 API 엔드포인트들입니다. 상세 메트릭, 토픽 헬스, 컨슈머 그룹 메트릭, 파티션 정보, 오프셋 관리, 클러스터 정보, 연결 상태, 핑 테스트, 연결 히스토리, 대시보드 데이터 등을 제공합니다."
 )
 class MonitoringController(
     private val connectionManagementUseCase: ConnectionManagementUseCase,
