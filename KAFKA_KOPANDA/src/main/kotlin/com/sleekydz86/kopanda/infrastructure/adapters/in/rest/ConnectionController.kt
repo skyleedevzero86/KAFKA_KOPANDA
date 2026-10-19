@@ -7,6 +7,7 @@ import com.sleekydz86.kopanda.application.dto.request.UpdateConnectionRequest
 import com.sleekydz86.kopanda.application.dto.response.*
 import com.sleekydz86.kopanda.application.ports.`in`.ConnectionManagementUseCase
 import com.sleekydz86.kopanda.application.ports.`in`.KafkaManagementUseCase
+import com.sleekydz86.kopanda.infrastructure.persistence.crypto.PasswordTooLongException
 import com.sleekydz86.kopanda.shared.domain.DomainException
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -179,6 +180,9 @@ class ConnectionController(
         } catch (e: DomainException) {
             logger.warn("연결을 찾을 수 없음: $connectionId")
             ResponseEntity.notFound().build()
+        } catch (e: PasswordTooLongException) {
+            logger.warn("연결 수정 요청이 올바르지 않습니다: $connectionId")
+            ResponseEntity.badRequest().build()
         } catch (e: Exception) {
             logger.error("연결 수정 실패: $connectionId", e)
             ResponseEntity.internalServerError().build()
@@ -245,6 +249,9 @@ class ConnectionController(
             logger.info("연결 테스트 요청: ${request.name}")
             val result = connectionManagementUseCase.testConnection(request)
             ResponseEntity.ok(result)
+        } catch (e: PasswordTooLongException) {
+            logger.warn("연결 테스트 요청이 올바르지 않습니다: ${request.name}")
+            ResponseEntity.badRequest().build()
         } catch (e: Exception) {
             logger.error("연결 테스트 실패: ${request.name}", e)
             ResponseEntity.internalServerError().build()

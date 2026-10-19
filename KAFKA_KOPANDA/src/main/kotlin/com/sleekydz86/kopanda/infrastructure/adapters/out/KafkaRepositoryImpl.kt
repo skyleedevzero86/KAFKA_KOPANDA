@@ -38,6 +38,7 @@ import org.apache.kafka.clients.admin.ListTopicsOptions
 import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.admin.OffsetSpec
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.producer.KafkaProducer
@@ -53,6 +54,7 @@ import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.kafka.common.errors.GroupSubscribedToTopicException
 import org.apache.kafka.common.errors.UnknownMemberIdException
 import org.apache.kafka.common.errors.UnsupportedVersionException
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Repository
 import java.time.Duration
 import java.time.LocalDateTime
@@ -62,14 +64,19 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 @Repository
-class KafkaRepositoryImpl : KafkaRepository {
-    
+class KafkaRepositoryImpl @Autowired constructor(
+    private val adminClients: AdminClientRegistry
+) : KafkaRepository {
+
+    constructor() : this(AdminClientRegistry())
+
     private val logger = Logger.getLogger(KafkaRepositoryImpl::class.java.name)
 
     override suspend fun getTopics(connection: Connection): List<Topic> {
-        val adminClient = createAdminClient(connection)
+        val adminClient = adminClients.get(connection)
         return try {
             val topicList = adminClient.listTopics().names().get()
+            val topicFailures = mutableListOf<Throwable>()
 
             val topics = topicList.mapNotNull { topicName ->
                 try {
@@ -78,6 +85,7 @@ class KafkaRepositoryImpl : KafkaRepository {
 
                     toTopic(topicName, partitions)
                 } catch (e: Exception) {
+                    topicFailures.add(e)
                     val cause = generateSequence<Throwable>(e) { it.cause }
                         .firstOrNull { it is UnsupportedVersionException }
                     if (cause != null) {
@@ -94,9 +102,11 @@ class KafkaRepositoryImpl : KafkaRepository {
                     }
                 }
             }
-            fillOffsets(adminClient, topics)
+            fillOffsets(connection, adminClient, topics)
+            topicFailures.forEach { adminClients.evictOnConnectionFailure(connection.getId().value, it) }
             topics
         } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
             when (e) {
                 is UnsupportedVersionException -> {
                     logger.severe("Kafka 버전 호환성 문제로 토픽 목록을 가져올 수 없습니다: ${e.message}")
@@ -106,21 +116,20 @@ class KafkaRepositoryImpl : KafkaRepository {
                 }
             }
             emptyList()
-        } finally {
-            adminClient.close()
         }
     }
 
     override suspend fun getTopicDetails(connection: Connection, topicName: TopicName): Topic? {
-        val adminClient = createAdminClient(connection)
+        val adminClient = adminClients.get(connection)
         return try {
             val topicDetails = adminClient.describeTopics(listOf(topicName.value)).all().get()[topicName.value]
             if (topicDetails == null) return null
 
             val topic = toTopic(topicName.value, toPartitions(topicDetails.partitions()))
-            fillOffsets(adminClient, listOf(topic))
+            fillOffsets(connection, adminClient, listOf(topic))
             topic
         } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
             logger.warning("토픽 상세 정보 조회 실패: ${topicName.value} - ${e.message}")
             try {
                 toTopic(topicName.value, emptyList(), fallback = true)
@@ -128,14 +137,12 @@ class KafkaRepositoryImpl : KafkaRepository {
                 logger.warning("토픽 상세 정보를 만들 수 없습니다: ${topicName.value} - ${buildError.message}")
                 null
             }
-        } finally {
-            adminClient.close()
         }
     }
 
     override suspend fun createTopic(connection: Connection, topic: Topic): Topic {
-        val adminClient = createAdminClient(connection)
-        return try {
+        val adminClient = adminClients.get(connection)
+        try {
             val newTopic = NewTopic(
                 topic.name.value,
                 topic.config.partitionCount,
@@ -143,18 +150,20 @@ class KafkaRepositoryImpl : KafkaRepository {
             ).configs(topic.config.config)
 
             adminClient.createTopics(listOf(newTopic)).all().get()
-            topic
-        } finally {
-            adminClient.close()
+            return topic
+        } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
+            throw e
         }
     }
 
     override suspend fun deleteTopic(connection: Connection, topicName: TopicName) {
-        val adminClient = createAdminClient(connection)
+        val adminClient = adminClients.get(connection)
         try {
             adminClient.deleteTopics(listOf(topicName.value)).all().get()
-        } finally {
-            adminClient.close()
+        } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
+            throw e
         }
     }
 
@@ -170,17 +179,25 @@ class KafkaRepositoryImpl : KafkaRepository {
             val topicPartition = TopicPartition(topic.name.value, partition.partitionNumber.value)
             consumer.assign(listOf(topicPartition))
             consumer.seek(topicPartition, offset.value)
-
-            val records = consumer.poll(Duration.ofSeconds(5))
-            records.records(topicPartition).take(limit).map { record ->
-                Message.create(
-                    offset = record.offset(),
-                    key = record.key(),
-                    value = record.value() ?: "",
-                    timestamp = record.timestamp(),
-                    partitionNumber = record.partition(),
-                    headers = emptyMap()
-                )
+            val endOffset = consumer.endOffsets(listOf(topicPartition)).getValue(topicPartition)
+            if (offset.value >= endOffset) {
+                emptyList()
+            } else {
+                val messages = mutableListOf<Message>()
+                val deadline = System.currentTimeMillis() + 10_000
+                while (messages.size < limit &&
+                    consumer.position(topicPartition) < endOffset &&
+                    System.currentTimeMillis() < deadline
+                ) {
+                    val records = consumer.poll(Duration.ofMillis(500))
+                    for (record in records.records(topicPartition)) {
+                        if (messages.size >= limit) {
+                            break
+                        }
+                        messages.add(toFetchedMessage(record))
+                    }
+                }
+                messages
             }
         } finally {
             consumer.close()
@@ -221,23 +238,26 @@ class KafkaRepositoryImpl : KafkaRepository {
             } else {
                 consumer.seekToBeginning(listOf(topicPartition))
             }
+            val endOffset = consumer.endOffsets(listOf(topicPartition)).getValue(topicPartition)
+            if (consumer.position(topicPartition) >= endOffset) {
+                return emptyList()
+            }
 
             val messages = mutableListOf<Message>()
-            val records = consumer.poll(Duration.ofSeconds(5))
-
-            records.records(topicPartition).take(criteria.limit).forEach { record ->
-                val message = Message.create(
-                    offset = record.offset(),
-                    key = record.key(),
-                    value = record.value() ?: "",
-                    timestamp = record.timestamp(),
-                    partitionNumber = record.partition(),
-                    headers = emptyMap()
-                )
-
-                if (criteria.key == null || record.key()?.contains(criteria.key) == true) {
-                    if (criteria.value == null || record.value()?.contains(criteria.value) == true) {
-                        messages.add(message)
+            val deadline = System.currentTimeMillis() + 10_000
+            while (messages.size < criteria.limit &&
+                consumer.position(topicPartition) < endOffset &&
+                System.currentTimeMillis() < deadline
+            ) {
+                val records = consumer.poll(Duration.ofMillis(500))
+                for (record in records.records(topicPartition)) {
+                    if (messages.size >= criteria.limit) {
+                        break
+                    }
+                    val keyMatched = criteria.key == null || record.key()?.contains(criteria.key) == true
+                    val valueMatched = criteria.value == null || record.value()?.contains(criteria.value) == true
+                    if (keyMatched && valueMatched) {
+                        messages.add(toFetchedMessage(record))
                     }
                 }
             }
@@ -248,8 +268,19 @@ class KafkaRepositoryImpl : KafkaRepository {
         }
     }
 
+    private fun toFetchedMessage(record: ConsumerRecord<String, String>): Message {
+        return Message.create(
+            offset = record.offset(),
+            key = record.key(),
+            value = record.value() ?: "",
+            timestamp = record.timestamp(),
+            partitionNumber = record.partition(),
+            headers = emptyMap()
+        )
+    }
+
     override suspend fun getConsumerGroups(connection: Connection): List<ConsumerGroupDto> {
-        val adminClient = createAdminClient(connection)
+        val adminClient = adminClients.get(connection)
         return try {
             val consumerGroups = adminClient.listConsumerGroups().all().get()
 
@@ -274,8 +305,9 @@ class KafkaRepositoryImpl : KafkaRepository {
                     offsets = emptyMap()
                 )
             }
-        } finally {
-            adminClient.close()
+        } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
+            throw e
         }
     }
 
@@ -294,13 +326,14 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun testConnection(connection: Connection): Boolean {
+        val adminClient = createAdminClient(connection)
         return try {
-            val adminClient = createAdminClient(connection)
             adminClient.listTopics().names().get()
-            adminClient.close()
             true
         } catch (e: Exception) {
             false
+        } finally {
+            adminClient.close()
         }
     }
 
@@ -349,13 +382,13 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getTopicHealth(connection: Connection, topicName: TopicName): TopicHealthDto {
-        return createAdminClient(connection).use { adminClient ->
+        return withAdmin(connection) { adminClient ->
             topicHealth(adminClient, topicName.value)
         }
     }
 
     override suspend fun getAllTopicsHealth(connection: Connection): List<TopicHealthDto> {
-        return createAdminClient(connection).use { adminClient ->
+        return withAdmin(connection) { adminClient ->
             val listings = adminClient.listTopics(ListTopicsOptions().listInternal(true)).listings().get()
             listings.filter { !it.isInternal }.map { listing ->
                 topicHealth(adminClient, listing.name())
@@ -364,13 +397,13 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getConsumerGroupMetrics(connection: Connection, groupId: String): ConsumerGroupMetricsDto {
-        return createAdminClient(connection).use { adminClient ->
+        return withAdmin(connection) { adminClient ->
             consumerGroupMetrics(adminClient, groupId)
         }
     }
 
     override suspend fun getAllConsumerGroupMetrics(connection: Connection): List<ConsumerGroupMetricsDto> {
-        return createAdminClient(connection).use { adminClient ->
+        return withAdmin(connection) { adminClient ->
             adminClient.listConsumerGroups().all().get().map { group ->
                 consumerGroupMetrics(adminClient, group.groupId())
             }
@@ -391,7 +424,7 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getPartitionDetails(connection: Connection, topicName: TopicName, partitionNumber: Int): PartitionDetailDto {
-        return createAdminClient(connection).use { adminClient ->
+        return withAdmin(connection) { adminClient ->
             val partitionInfo = partitionInfo(adminClient, topicName.value, partitionNumber)
             val offsets = readOffsets(adminClient, listOf(TopicPartition(topicName.value, partitionNumber)))
             val offset = offsets.getValue(TopicPartition(topicName.value, partitionNumber))
@@ -418,7 +451,7 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     override suspend fun getOffsetInfo(connection: Connection, topicName: TopicName, partitionNumber: Int): OffsetInfoDto {
-        return createAdminClient(connection).use { adminClient ->
+        return withAdmin(connection) { adminClient ->
             partitionInfo(adminClient, topicName.value, partitionNumber)
             val offsets = readOffsets(adminClient, listOf(TopicPartition(topicName.value, partitionNumber)))
             val offset = offsets.getValue(TopicPartition(topicName.value, partitionNumber))
@@ -442,7 +475,7 @@ class KafkaRepositoryImpl : KafkaRepository {
         groupId: String,
         offset: Long
     ): Boolean {
-        return createAdminClient(connection).use { adminClient ->
+        return withAdmin(connection) { adminClient ->
             partitionInfo(adminClient, topicName.value, partitionNumber)
             val topicPartition = TopicPartition(topicName.value, partitionNumber)
             val range = readOffsets(adminClient, listOf(topicPartition)).getValue(topicPartition)
@@ -645,7 +678,7 @@ class KafkaRepositoryImpl : KafkaRepository {
         )
     }
 
-    private fun fillOffsets(adminClient: AdminClient, topics: List<Topic>) {
+    private fun fillOffsets(connection: Connection, adminClient: AdminClient, topics: List<Topic>) {
         val indexed = topics.flatMap { topic ->
             topic.partitions.map { partition ->
                 TopicPartition(topic.name.value, partition.partitionNumber.value) to partition
@@ -662,6 +695,7 @@ class KafkaRepositoryImpl : KafkaRepository {
                 partition.updateMessageCount((offset.latest - offset.earliest).coerceAtLeast(0))
             }
         } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
             logger.log(Level.WARNING, "오프셋 조회에 실패했습니다", e)
         }
     }
@@ -741,7 +775,7 @@ class KafkaRepositoryImpl : KafkaRepository {
     )
 
     private fun snapshot(connection: Connection): ClusterSnapshot =
-        createAdminClient(connection).use { admin ->
+        withAdmin(connection) { admin ->
             val described = admin.describeCluster()
             val clusterId = described.clusterId().get()
                 ?: throw KafkaException("클러스터 ID를 가져오지 못했습니다")
@@ -783,9 +817,17 @@ class KafkaRepositoryImpl : KafkaRepository {
             )
         }
 
+    private fun <T> withAdmin(connection: Connection, block: (AdminClient) -> T): T {
+        try {
+            return block(adminClients.get(connection))
+        } catch (e: Exception) {
+            adminClients.evictOnConnectionFailure(connection.getId().value, e)
+            throw e
+        }
+    }
+
     private fun createAdminClient(connection: Connection): AdminClient {
-        val config = Properties()
-        config[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
+        val config = KafkaClientProps.base(connection)
         config[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = 5000
         config[AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = 10000
         
@@ -799,9 +841,8 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     private fun createConsumer(connection: Connection): KafkaConsumer<String, String> {
-        val config = Properties()
-        config[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
-        config[ConsumerConfig.GROUP_ID_CONFIG] = "kopanda-consumer"
+        val config = KafkaClientProps.base(connection)
+        config[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = false
         config[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
         config[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
         config[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
@@ -809,8 +850,7 @@ class KafkaRepositoryImpl : KafkaRepository {
     }
 
     private fun createProducer(connection: Connection): KafkaProducer<String, String> {
-        val config = Properties()
-        config[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = "${connection.host.value}:${connection.port.value}"
+        val config = KafkaClientProps.base(connection)
         config[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
         config[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
         return KafkaProducer(config)
