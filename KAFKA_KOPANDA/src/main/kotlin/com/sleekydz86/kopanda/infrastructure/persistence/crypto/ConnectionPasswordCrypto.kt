@@ -1,7 +1,13 @@
 package com.sleekydz86.kopanda.infrastructure.persistence.crypto
 
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.core.env.Environment
+import org.springframework.core.env.Profiles
 import org.springframework.stereotype.Component
+import java.nio.file.Files
+import java.nio.file.Path
 import java.security.GeneralSecurityException
 import java.security.SecureRandom
 import java.util.Base64
@@ -10,10 +16,13 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 @Component
-class ConnectionPasswordCrypto(
-    @Value("\${kopanda.crypto.key:}") encodedKey: String
+class ConnectionPasswordCrypto @Autowired constructor(
+    @Value("\${kopanda.crypto.key:}") encodedKey: String,
+    @Value("\${kopanda.crypto.local-key-file:data/kopanda-crypto.key.local}") localKeyFile: String,
+    environment: Environment
 ) {
-    private val key: SecretKeySpec = decodeKey(encodedKey)
+    private val logger = LoggerFactory.getLogger(ConnectionPasswordCrypto::class.java)
+    private val key: SecretKeySpec = decodeKey(encodedKey, localKeyFile, environment)
     private val random = SecureRandom()
 
     init {
@@ -75,8 +84,14 @@ class ConnectionPasswordCrypto(
         }
     }
 
-    private fun decodeKey(encodedKey: String): SecretKeySpec {
-        val trimmed = encodedKey.trim()
+    private fun decodeKey(encodedKey: String, localKeyFile: String, environment: Environment): SecretKeySpec {
+        val trimmed = encodedKey.trim().ifEmpty {
+            if (environment.acceptsProfiles(Profiles.of("local", "dev"))) {
+                readOrCreateLocalKey(Path.of(localKeyFile))
+            } else {
+                ""
+            }
+        }
         if (trimmed.isEmpty()) {
             throw IllegalStateException("KOPANDA_CRYPTO_KEY가 없습니다. Base64로 인코딩된 32바이트 키를 설정해야 합니다")
         }
@@ -93,6 +108,25 @@ class ConnectionPasswordCrypto(
         } finally {
             raw.fill(0)
         }
+    }
+
+    private fun readOrCreateLocalKey(path: Path): String {
+        if (Files.exists(path)) {
+            logger.info("로컬 암호화 키 파일을 사용합니다: {}", path.toAbsolutePath())
+            return Files.readString(path).trim()
+        }
+        val generated = ByteArray(KEY_BYTES)
+        SecureRandom().nextBytes(generated)
+        val encoded = Base64.getEncoder().encodeToString(generated)
+        generated.fill(0)
+        try {
+            Files.createDirectories(path.parent ?: Path.of("."))
+            Files.writeString(path, encoded)
+        } catch (e: java.io.IOException) {
+            throw IllegalStateException("로컬 암호화 키 파일을 만들지 못했습니다: ${path.toAbsolutePath()}", e)
+        }
+        logger.info("KOPANDA_CRYPTO_KEY가 없어 로컬 키 파일을 만들었습니다: {}", path.toAbsolutePath())
+        return encoded
     }
 
     companion object {

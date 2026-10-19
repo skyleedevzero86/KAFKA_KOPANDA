@@ -6,11 +6,14 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.core.env.StandardEnvironment
+import java.nio.file.Files
 import java.util.Base64
+import java.util.Comparator
 
 class ConnectionPasswordCryptoTest {
 
-    private val crypto = ConnectionPasswordCrypto(TEST_KEY)
+    private val crypto = ConnectionPasswordCrypto(TEST_KEY, "unused", StandardEnvironment())
 
     @Test
     fun `암호화한 값을 복호화하면 원문과 같다`() {
@@ -140,6 +143,31 @@ class ConnectionPasswordCryptoTest {
                     .isInstanceOf(IllegalStateException::class.java)
                     .hasMessageContaining("KOPANDA_CRYPTO_KEY가 없습니다")
             }
+    }
+
+    @Test
+    fun `로컬 프로필이고 키가 없으면 키 파일을 만들어 시작한다`() {
+        val dir = Files.createTempDirectory("kopanda-crypto")
+        val keyFile = dir.resolve("kopanda-crypto.key.local")
+        val runner = ApplicationContextRunner()
+            .withUserConfiguration(ConnectionPasswordCrypto::class.java)
+            .withPropertyValues(
+                "spring.profiles.active=local",
+                "kopanda.crypto.local-key-file=${keyFile.toString().replace('\\', '/')}"
+            )
+        try {
+            runner.run { context ->
+                assertThat(context).hasNotFailed()
+            }
+            val saved = Files.readString(keyFile).trim()
+            assertThat(Base64.getDecoder().decode(saved)).hasSize(32)
+            runner.run { context ->
+                assertThat(context).hasNotFailed()
+            }
+            assertThat(Files.readString(keyFile).trim()).isEqualTo(saved)
+        } finally {
+            Files.walk(dir).sorted(Comparator.reverseOrder()).forEach { Files.deleteIfExists(it) }
+        }
     }
 
     @Test
