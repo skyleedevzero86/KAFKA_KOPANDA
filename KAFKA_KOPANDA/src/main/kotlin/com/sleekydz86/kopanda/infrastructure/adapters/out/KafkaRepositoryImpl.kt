@@ -38,6 +38,7 @@ import org.apache.kafka.clients.admin.ListTopicsOptions
 import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.admin.OffsetSpec
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.producer.KafkaProducer
@@ -170,17 +171,25 @@ class KafkaRepositoryImpl : KafkaRepository {
             val topicPartition = TopicPartition(topic.name.value, partition.partitionNumber.value)
             consumer.assign(listOf(topicPartition))
             consumer.seek(topicPartition, offset.value)
-
-            val records = consumer.poll(Duration.ofSeconds(5))
-            records.records(topicPartition).take(limit).map { record ->
-                Message.create(
-                    offset = record.offset(),
-                    key = record.key(),
-                    value = record.value() ?: "",
-                    timestamp = record.timestamp(),
-                    partitionNumber = record.partition(),
-                    headers = emptyMap()
-                )
+            val endOffset = consumer.endOffsets(listOf(topicPartition)).getValue(topicPartition)
+            if (offset.value >= endOffset) {
+                emptyList()
+            } else {
+                val messages = mutableListOf<Message>()
+                val deadline = System.currentTimeMillis() + 10_000
+                while (messages.size < limit &&
+                    consumer.position(topicPartition) < endOffset &&
+                    System.currentTimeMillis() < deadline
+                ) {
+                    val records = consumer.poll(Duration.ofMillis(500))
+                    for (record in records.records(topicPartition)) {
+                        if (messages.size >= limit) {
+                            break
+                        }
+                        messages.add(toFetchedMessage(record))
+                    }
+                }
+                messages
             }
         } finally {
             consumer.close()
@@ -221,23 +230,26 @@ class KafkaRepositoryImpl : KafkaRepository {
             } else {
                 consumer.seekToBeginning(listOf(topicPartition))
             }
+            val endOffset = consumer.endOffsets(listOf(topicPartition)).getValue(topicPartition)
+            if (consumer.position(topicPartition) >= endOffset) {
+                return emptyList()
+            }
 
             val messages = mutableListOf<Message>()
-            val records = consumer.poll(Duration.ofSeconds(5))
-
-            records.records(topicPartition).take(criteria.limit).forEach { record ->
-                val message = Message.create(
-                    offset = record.offset(),
-                    key = record.key(),
-                    value = record.value() ?: "",
-                    timestamp = record.timestamp(),
-                    partitionNumber = record.partition(),
-                    headers = emptyMap()
-                )
-
-                if (criteria.key == null || record.key()?.contains(criteria.key) == true) {
-                    if (criteria.value == null || record.value()?.contains(criteria.value) == true) {
-                        messages.add(message)
+            val deadline = System.currentTimeMillis() + 10_000
+            while (messages.size < criteria.limit &&
+                consumer.position(topicPartition) < endOffset &&
+                System.currentTimeMillis() < deadline
+            ) {
+                val records = consumer.poll(Duration.ofMillis(500))
+                for (record in records.records(topicPartition)) {
+                    if (messages.size >= criteria.limit) {
+                        break
+                    }
+                    val keyMatched = criteria.key == null || record.key()?.contains(criteria.key) == true
+                    val valueMatched = criteria.value == null || record.value()?.contains(criteria.value) == true
+                    if (keyMatched && valueMatched) {
+                        messages.add(toFetchedMessage(record))
                     }
                 }
             }
@@ -246,6 +258,17 @@ class KafkaRepositoryImpl : KafkaRepository {
         } finally {
             consumer.close()
         }
+    }
+
+    private fun toFetchedMessage(record: ConsumerRecord<String, String>): Message {
+        return Message.create(
+            offset = record.offset(),
+            key = record.key(),
+            value = record.value() ?: "",
+            timestamp = record.timestamp(),
+            partitionNumber = record.partition(),
+            headers = emptyMap()
+        )
     }
 
     override suspend fun getConsumerGroups(connection: Connection): List<ConsumerGroupDto> {
@@ -799,7 +822,7 @@ class KafkaRepositoryImpl : KafkaRepository {
 
     private fun createConsumer(connection: Connection): KafkaConsumer<String, String> {
         val config = KafkaClientProps.base(connection)
-        config[ConsumerConfig.GROUP_ID_CONFIG] = "kopanda-consumer"
+        config[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = false
         config[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
         config[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
         config[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"

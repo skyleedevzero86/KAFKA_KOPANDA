@@ -1,11 +1,18 @@
 package com.sleekydz86.kopanda.infrastructure.adapters.out
 
+import com.sleekydz86.kopanda.application.dto.common.MessageSearchCriteria
 import com.sleekydz86.kopanda.domain.entities.Connection
+import com.sleekydz86.kopanda.domain.entities.Partition
+import com.sleekydz86.kopanda.domain.entities.Topic
 import com.sleekydz86.kopanda.shared.domain.OffsetChangeConflictException
+import com.sleekydz86.kopanda.domain.valueobjects.ids.BrokerId
+import com.sleekydz86.kopanda.domain.valueobjects.message.Offset
 import com.sleekydz86.kopanda.domain.valueobjects.names.ConnectionName
 import com.sleekydz86.kopanda.domain.valueobjects.names.TopicName
 import com.sleekydz86.kopanda.domain.valueobjects.network.Host
 import com.sleekydz86.kopanda.domain.valueobjects.network.Port
+import com.sleekydz86.kopanda.domain.valueobjects.topic.PartitionNumber
+import com.sleekydz86.kopanda.domain.valueobjects.topic.TopicConfig
 import kotlinx.coroutines.runBlocking
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -262,6 +269,77 @@ class KafkaRepositoryImplTest {
         }
     }
 
+    @Test
+    fun `지정 오프셋부터 limit개를 읽고 끝에서는 남은 메시지만 바로 반환한다`() = runBlocking {
+        // given
+        val host = "127.0.0.1"
+        val port = 19092
+        val topicName = "read-window"
+        val connection = Connection(
+            name = ConnectionName("local"),
+            host = Host(host),
+            port = Port(port)
+        )
+        val adminProps = adminProps(host, port)
+        createTopic(adminProps, topicName, 1)
+        produce(host, port, topicName, 30) { index -> "value-$index" }
+        val repository = KafkaRepositoryImpl()
+        val topic = browseTopic(topicName)
+        val partition = browsePartition()
+
+        try {
+            // when
+            val window = repository.getMessages(connection, topic, partition, Offset(10), 10)
+            val started = System.nanoTime()
+            val tail = repository.getMessages(connection, topic, partition, Offset(25), 10)
+            val elapsedMs = (System.nanoTime() - started) / 1_000_000
+            val groups = consumerGroups(adminProps)
+
+            // then
+            assertEquals((10L..19L).toList(), window.map { it.offset.value })
+            assertEquals((25L..29L).toList(), tail.map { it.offset.value })
+            assertTrue(elapsedMs < 8_000)
+            assertFalse(groups.contains("kopanda-consumer"))
+        } finally {
+            deleteTopic(adminProps, topicName)
+        }
+    }
+
+    @Test
+    fun `값 필터를 통과한 메시지를 limit까지 채운다`() = runBlocking {
+        // given
+        val host = "127.0.0.1"
+        val port = 19092
+        val topicName = "read-search"
+        val connection = Connection(
+            name = ConnectionName("local"),
+            host = Host(host),
+            port = Port(port)
+        )
+        val adminProps = adminProps(host, port)
+        createTopic(adminProps, topicName, 1)
+        produce(host, port, topicName, 30) { index ->
+            if (index % 2 == 0) "keep-$index" else "other-$index"
+        }
+        val repository = KafkaRepositoryImpl()
+
+        try {
+            // when
+            val found = repository.searchMessages(
+                connection,
+                MessageSearchCriteria(topic = topicName, partition = 0, value = "keep", limit = 10)
+            )
+            val groups = consumerGroups(adminProps)
+
+            // then
+            assertEquals((0L..18L step 2).toList(), found.map { it.offset.value })
+            assertTrue(found.all { it.value.value.contains("keep") })
+            assertFalse(groups.contains("kopanda-consumer"))
+        } finally {
+            deleteTopic(adminProps, topicName)
+        }
+    }
+
     private fun ensureTopics(host: String, port: Int) {
         val props = Properties()
         props[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = "$host:$port"
@@ -275,6 +353,59 @@ class KafkaRepositoryImplTest {
                 admin.createTopics(missing).all().get()
             }
         }
+    }
+
+    private fun adminProps(host: String, port: Int): Properties {
+        val props = Properties()
+        props[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = "$host:$port"
+        return props
+    }
+
+    private fun createTopic(adminProps: Properties, topic: String, partitions: Int) {
+        AdminClient.create(adminProps).use { admin ->
+            val existing = admin.listTopics().names().get()
+            if (topic !in existing) {
+                admin.createTopics(listOf(NewTopic(topic, partitions, 1.toShort()))).all().get()
+            }
+        }
+    }
+
+    private fun deleteTopic(adminProps: Properties, topic: String) {
+        AdminClient.create(adminProps).use { admin ->
+            admin.deleteTopics(listOf(topic)).all().get()
+        }
+    }
+
+    private fun produce(host: String, port: Int, topic: String, count: Int, valueOf: (Int) -> String) {
+        val producerProps = Properties()
+        producerProps[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = "$host:$port"
+        producerProps[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+        producerProps[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+        KafkaProducer<String, String>(producerProps).use { producer ->
+            repeat(count) { index ->
+                producer.send(ProducerRecord(topic, 0, "key-$index", valueOf(index))).get()
+            }
+        }
+    }
+
+    private fun consumerGroups(adminProps: Properties): List<String> {
+        return AdminClient.create(adminProps).use { admin ->
+            admin.listConsumerGroups().all().get().map { it.groupId() }
+        }
+    }
+
+    private fun browseTopic(name: String): Topic {
+        return Topic(name = TopicName(name), config = TopicConfig(partitionCount = 1, replicationFactor = 1))
+    }
+
+    private fun browsePartition(): Partition {
+        val broker = BrokerId(1)
+        return Partition(
+            partitionNumber = PartitionNumber(0),
+            leader = broker,
+            replicas = listOf(broker),
+            inSyncReplicas = listOf(broker)
+        )
     }
 
     companion object {
